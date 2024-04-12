@@ -4,6 +4,7 @@ mod objd;
 mod slot;
 mod spr;
 mod sprite;
+mod the_sims;
 mod xml;
 
 fn main() {
@@ -13,10 +14,20 @@ fn main() {
 
     let xml = std::fs::read_to_string(input_xml_file_path).unwrap();
 
-    let mut iff_xml = quick_xml::de::from_str::<xml::IffXml>(&xml).unwrap();
+    let mut iff_description = quick_xml::de::from_str::<xml::IffDescription>(&xml).unwrap();
 
     let source_directory = std::path::PathBuf::from(&input_xml_file_path);
-    iff_xml.update_sprite_positions(source_directory.parent().unwrap());
+    let source_directory = source_directory.parent().unwrap();
+    iff_description.update_sprite_positions(source_directory);
+
+    let the_sims_install_path = the_sims::install_path();
+    let input_iff_file_path = the_sims_install_path
+        .clone()
+        .join(&iff_description.iff_file_path_relative)
+        .with_extension("iff");
+    println!("{}", input_iff_file_path.display());
+
+    iff::rebuild_iff_file(&input_iff_file_path, &input_iff_file_path);
 
     let xml_header = include_str!("../res/header.xml");
 
@@ -26,7 +37,7 @@ fn main() {
             .unwrap();
     ser.indent(' ', 2);
     use serde::Serialize;
-    iff_xml.serialize(ser).unwrap();
+    iff_description.serialize(ser).unwrap();
 
     std::fs::write(output_xml_file_path, &buffer).unwrap();
 }

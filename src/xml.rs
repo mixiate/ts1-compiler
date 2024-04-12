@@ -6,7 +6,7 @@ use crate::sprite;
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct IffXml {
+pub struct IffDescription {
     #[serde(rename = "@objectfilename")]
     pub iff_file_path_relative: String,
     #[serde(rename = "@exportobjectdefinitions")]
@@ -87,7 +87,7 @@ pub struct Sprites {
     pub sprites: Vec<spr::Sprite>,
 }
 
-impl IffXml {
+impl IffDescription {
     pub fn update_sprite_positions(&mut self, source_directory: &std::path::Path) {
         for sprite in &mut self.sprites.sprites {
             if sprite.sprite_type == spr::SpriteType::Spr1 {
