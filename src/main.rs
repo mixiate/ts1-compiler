@@ -3,6 +3,7 @@ mod iff;
 mod objd;
 mod slot;
 mod spr;
+mod sprite;
 mod xml;
 
 fn main() {
@@ -12,7 +13,10 @@ fn main() {
 
     let xml = std::fs::read_to_string(input_xml_file_path).unwrap();
 
-    let iff_xml = quick_xml::de::from_str::<xml::IffXml>(&xml).unwrap();
+    let mut iff_xml = quick_xml::de::from_str::<xml::IffXml>(&xml).unwrap();
+
+    let source_directory = std::path::PathBuf::from(&input_xml_file_path);
+    iff_xml.update_sprite_positions(source_directory.parent().unwrap());
 
     let xml_header = include_str!("../res/header.xml");
 

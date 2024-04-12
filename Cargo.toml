@@ -4,5 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+image = "0.25.1"
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 serde = { version = "1.0.197", features = ["serde_derive"] }

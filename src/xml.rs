@@ -2,6 +2,7 @@ use crate::dgrp;
 use crate::objd;
 use crate::slot;
 use crate::spr;
+use crate::sprite;
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
@@ -84,4 +85,56 @@ pub struct DrawGroups {
 pub struct Sprites {
     #[serde(default, rename = "sprite")]
     pub sprites: Vec<spr::Sprite>,
+}
+
+impl IffXml {
+    pub fn update_sprite_positions(&mut self, source_directory: &std::path::Path) {
+        for sprite in &mut self.sprites.sprites {
+            if sprite.sprite_type == spr::SpriteType::Spr1 {
+                continue;
+            }
+            for frame in &mut sprite.sprite_frames {
+                frame.palette_chunk_id = sprite.palette_chunk_id;
+
+                let alpha_sprite_file_path = source_directory.join(
+                    &frame
+                        .sprite_channels
+                        .iter()
+                        .find(|x| x.channel_type == spr::SpriteChannelType::Alpha)
+                        .unwrap()
+                        .file_path_relative,
+                );
+                let sprite_description = sprite::read_sprite_description_file(
+                    &alpha_sprite_file_path,
+                )
+                .unwrap_or_else(|| {
+                    let sprite_image = image::open(&alpha_sprite_file_path).unwrap().to_luma8();
+                    sprite::calculate_sprite_description(&sprite_image, frame.zoom_level)
+                });
+
+                frame.bounds_left = sprite_description.bounds.left;
+                frame.bounds_top = sprite_description.bounds.top;
+                frame.bounds_right = sprite_description.bounds.right;
+                frame.bounds_bottom = sprite_description.bounds.bottom;
+
+                for draw_group in self.draw_groups.draw_groups.iter_mut() {
+                    for draw_group_item_list in &mut draw_group.draw_group_item_lists {
+                        for draw_group_item in &mut draw_group_item_list.draw_group_items {
+                            if sprite.chunk_id == draw_group_item.sprite_chunk_id
+                                && draw_group_item.sprite_index == frame.index
+                            {
+                                let offset_x = if draw_group_item.flags & 0b1 == 0 {
+                                    sprite_description.offsets.x
+                                } else {
+                                    sprite_description.offsets.x_flipped
+                                };
+                                draw_group_item.x = offset_x;
+                                draw_group_item.y = sprite_description.offsets.y;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
