@@ -145,7 +145,7 @@ impl Sprite {
             frame_data.extend_from_slice(&u16::try_from(width).unwrap().to_le_bytes());
             frame_data.extend_from_slice(&u16::try_from(height).unwrap().to_le_bytes());
             frame_data.extend_from_slice(&SPRITE_FLAGS.to_le_bytes());
-            frame_data.extend_from_slice(&frame.palette_chunk_id.as_u16().to_le_bytes());
+            frame_data.extend_from_slice(&frame.palette_chunk_id.as_i16().to_le_bytes());
             frame_data.extend_from_slice(&u16::from(frame.transparent_colour_index).to_le_bytes());
             frame_data.extend_from_slice(&u16::try_from(frame.bounds_top).unwrap().to_le_bytes());
             frame_data.extend_from_slice(&u16::try_from(frame.bounds_left).unwrap().to_le_bytes());
@@ -288,7 +288,7 @@ impl Sprite {
         let mut spr2_data = Vec::new();
         spr2_data.extend_from_slice(&SPR2_VERSION.to_le_bytes());
         spr2_data.extend_from_slice(&u32::try_from(self.sprite_frames.len()).unwrap().to_le_bytes());
-        spr2_data.extend_from_slice(&self.palette_chunk_id.as_u32().to_le_bytes());
+        spr2_data.extend_from_slice(&self.palette_chunk_id.as_i32().to_le_bytes());
 
         let sprites_offset = (std::mem::size_of::<u32>() * self.sprite_frames.len()) + spr2_data.len();
         let mut frame_address = u32::try_from(sprites_offset).unwrap();

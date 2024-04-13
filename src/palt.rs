@@ -33,6 +33,10 @@ pub fn create_palt_chunks(
     let mut palette_chunks = std::collections::HashMap::new();
 
     for sprite in sprites {
+        const SPR1_SINGLE_COLOUR_PALETTE_CHUNK_ID: i16 = -1;
+        if sprite.palette_chunk_id.as_i16() == SPR1_SINGLE_COLOUR_PALETTE_CHUNK_ID {
+            continue;
+        }
         palette_chunks.entry(sprite.palette_chunk_id).or_insert_with(|| {
             let colour_sprite_file_path = source_directory.join(
                 sprite

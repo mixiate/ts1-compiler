@@ -7,19 +7,19 @@ pub const IFF_CHUNK_HEADER_SIZE: usize = 76;
 pub const IFF_CHUNK_LABEL_SIZE: usize = 64;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, serde::Deserialize, serde::Serialize)]
-pub struct ChunkId(u16);
+pub struct ChunkId(i16);
 
 impl ChunkId {
-    pub fn as_u16(self) -> u16 {
+    pub fn as_i16(self) -> i16 {
         self.0
     }
 
-    pub fn as_u32(self) -> u32 {
-        u32::from(self.0)
+    pub fn as_i32(self) -> i32 {
+        i32::from(self.0)
     }
 
     pub fn from_be_bytes(bytes: [u8; 2]) -> ChunkId {
-        ChunkId(u16::from_be_bytes(bytes))
+        ChunkId(i16::from_be_bytes(bytes))
     }
 }
 
@@ -66,7 +66,7 @@ impl ChunkHeader {
     pub fn write(&self, writer: &mut impl std::io::Write) {
         writer.write_all(&self.chunk_type).unwrap();
         writer.write_all(&self.size.to_be_bytes()).unwrap();
-        writer.write_all(&self.id.as_u16().to_be_bytes()).unwrap();
+        writer.write_all(&self.id.as_i16().to_be_bytes()).unwrap();
         writer.write_all(&self.flags.to_be_bytes()).unwrap();
         writer.write_all(&self.label).unwrap();
     }
@@ -175,7 +175,7 @@ pub fn rebuild_iff_file(
                     let label_length = label_length + (label_length % 2);
 
                     rsmp_data.extend_from_slice(&chunk.1.to_le_bytes());
-                    rsmp_data.extend_from_slice(&chunk.0.id.as_u16().to_le_bytes());
+                    rsmp_data.extend_from_slice(&chunk.0.id.as_i16().to_le_bytes());
                     rsmp_data.extend_from_slice(&chunk.0.flags.to_le_bytes());
                     rsmp_data.extend_from_slice(&chunk.0.label[0..label_length]);
                 }
