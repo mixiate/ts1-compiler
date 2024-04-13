@@ -1,3 +1,6 @@
+use crate::objd;
+use crate::xml;
+
 pub const IFF_FILE_HEADER_SIZE: usize = 64;
 pub const IFF_CHUNK_HEADER_SIZE: usize = 76;
 pub const IFF_CHUNK_LABEL_SIZE: usize = 64;
@@ -76,10 +79,21 @@ impl ChunkHeader {
 }
 
 pub fn rebuild_iff_file(
+    iff_description: &xml::IffDescription,
     input_iff_file_path: &std::path::Path,
     output_iff_file_path: &std::path::Path,
 ) {
     let input_iff_file_bytes = std::fs::read(input_iff_file_path).unwrap();
+
+    let mut new_chunks = std::vec::Vec::new();
+
+    // create OBJD chunks
+    for object_definition in &iff_description.object_definitions.object_definitions {
+        let mut objd_chunk = std::vec::Vec::new();
+        object_definition.write(&mut objd_chunk);
+        assert!(objd_chunk.len() == IFF_CHUNK_HEADER_SIZE + objd::OBJD_CHUNK_DATA_SIZE);
+        new_chunks.push(objd_chunk);
+    }
 
     // create the output iff file, copying the header from the input file
     let mut output_iff_file_bytes = std::vec::Vec::new();
@@ -97,7 +111,7 @@ pub fn rebuild_iff_file(
             );
             let chunk_address_offset = u32::try_from(output_iff_file_bytes.len()).unwrap();
             let chunk_type = std::str::from_utf8(&chunk_header.chunk_type).unwrap();
-            if !matches!(chunk_type, "rsmp") {
+            if !matches!(chunk_type, "OBJD" | "rsmp") {
                 chunk_descs
                     .entry(chunk_header.chunk_type)
                     .or_insert_with(std::vec::Vec::new)
@@ -108,6 +122,19 @@ pub fn rebuild_iff_file(
             }
             i += usize::try_from(chunk_header.size).unwrap();
         }
+    }
+
+    // add our replacement chunks to the output iff
+    for new_chunk in new_chunks {
+        let chunk_header =
+            ChunkHeader::from_bytes(&new_chunk[0..IFF_CHUNK_HEADER_SIZE].try_into().unwrap());
+        let chunk_address_offset = u32::try_from(output_iff_file_bytes.len()).unwrap();
+        chunk_descs
+            .entry(chunk_header.chunk_type)
+            .or_insert_with(std::vec::Vec::new)
+            .push((chunk_header, chunk_address_offset));
+
+        output_iff_file_bytes.extend_from_slice(new_chunk.as_slice());
     }
 
     // create the rsmp chunk for the output iff

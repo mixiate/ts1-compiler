@@ -27,7 +27,7 @@ fn main() {
         .with_extension("iff");
     println!("{}", input_iff_file_path.display());
 
-    iff::rebuild_iff_file(&input_iff_file_path, &input_iff_file_path);
+    iff::rebuild_iff_file(&iff_description, &input_iff_file_path, &input_iff_file_path);
 
     let xml_header = include_str!("../res/header.xml");
 
