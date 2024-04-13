@@ -9,20 +9,16 @@ pub const IFF_CHUNK_LABEL_SIZE: usize = 64;
 pub struct ChunkId(u16);
 
 impl ChunkId {
+    pub fn as_u16(self) -> u16 {
+        self.0
+    }
+
     pub fn as_u32(self) -> u32 {
         u32::from(self.0)
     }
 
     pub fn from_be_bytes(bytes: [u8; 2]) -> ChunkId {
         ChunkId(u16::from_be_bytes(bytes))
-    }
-
-    pub fn to_be_bytes(self) -> [u8; 2] {
-        self.0.to_be_bytes()
-    }
-
-    pub fn to_le_bytes(self) -> [u8; 2] {
-        self.0.to_le_bytes()
     }
 }
 
@@ -69,7 +65,7 @@ impl ChunkHeader {
     pub fn write(&self, writer: &mut impl std::io::Write) {
         writer.write_all(&self.chunk_type).unwrap();
         writer.write_all(&self.size.to_be_bytes()).unwrap();
-        writer.write_all(&self.id.to_be_bytes()).unwrap();
+        writer.write_all(&self.id.as_u16().to_be_bytes()).unwrap();
         writer.write_all(&self.flags.to_be_bytes()).unwrap();
         writer.write_all(&self.label).unwrap();
     }
@@ -166,7 +162,7 @@ pub fn rebuild_iff_file(
                     let label_length = label_length + (label_length % 2);
 
                     rsmp_data.extend_from_slice(&chunk.1.to_le_bytes());
-                    rsmp_data.extend_from_slice(&chunk.0.id.to_le_bytes());
+                    rsmp_data.extend_from_slice(&chunk.0.id.as_u16().to_le_bytes());
                     rsmp_data.extend_from_slice(&chunk.0.flags.to_le_bytes());
                     rsmp_data.extend_from_slice(&chunk.0.label[0..label_length]);
                 }
