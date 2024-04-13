@@ -96,14 +96,8 @@ impl IffDescription {
             for frame in &mut sprite.sprite_frames {
                 frame.palette_chunk_id = sprite.palette_chunk_id;
 
-                let alpha_sprite_file_path = source_directory.join(
-                    &frame
-                        .sprite_channels
-                        .iter()
-                        .find(|x| x.channel_type == spr::SpriteChannelType::Alpha)
-                        .unwrap()
-                        .file_path_relative,
-                );
+                let alpha_sprite_file_path =
+                    source_directory.join(&frame.sprite_channel_file_path_relative(spr::SpriteChannelType::Alpha));
                 let sprite_description =
                     sprite::read_sprite_description_file(&alpha_sprite_file_path).unwrap_or_else(|| {
                         let sprite_image = image::open(&alpha_sprite_file_path).unwrap().to_luma8();

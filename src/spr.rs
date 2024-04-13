@@ -69,6 +69,12 @@ pub struct SpriteFrame {
     pub sprite_channels: Vec<SpriteChannel>,
 }
 
+impl SpriteFrame {
+    pub fn sprite_channel_file_path_relative(&self, channel_type: SpriteChannelType) -> &str {
+        &self.sprite_channels.iter().find(|x| x.channel_type == channel_type).unwrap().file_path_relative
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub enum SpriteChannelType {
