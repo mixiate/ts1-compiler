@@ -55,17 +55,10 @@ impl ChunkHeader {
     pub fn from_bytes(chunk_bytes: &[u8; IFF_CHUNK_HEADER_SIZE]) -> ChunkHeader {
         ChunkHeader {
             chunk_type: chunk_bytes[0..4].try_into().unwrap(),
-            size: u32::from_be_bytes([
-                chunk_bytes[4],
-                chunk_bytes[5],
-                chunk_bytes[6],
-                chunk_bytes[7],
-            ]),
+            size: u32::from_be_bytes([chunk_bytes[4], chunk_bytes[5], chunk_bytes[6], chunk_bytes[7]]),
             id: ChunkId::from_be_bytes([chunk_bytes[8], chunk_bytes[9]]),
             flags: u16::from_be_bytes([chunk_bytes[10], chunk_bytes[11]]),
-            label: chunk_bytes[12..12 + IFF_CHUNK_LABEL_SIZE]
-                .try_into()
-                .unwrap(),
+            label: chunk_bytes[12..12 + IFF_CHUNK_LABEL_SIZE].try_into().unwrap(),
         }
     }
 
@@ -104,11 +97,8 @@ pub fn rebuild_iff_file(
     {
         let mut i = output_iff_file_bytes.len();
         while i < input_iff_file_bytes.len() {
-            let chunk_header = ChunkHeader::from_bytes(
-                &input_iff_file_bytes[i..i + IFF_CHUNK_HEADER_SIZE]
-                    .try_into()
-                    .unwrap(),
-            );
+            let chunk_header =
+                ChunkHeader::from_bytes(&input_iff_file_bytes[i..i + IFF_CHUNK_HEADER_SIZE].try_into().unwrap());
             let chunk_address_offset = u32::try_from(output_iff_file_bytes.len()).unwrap();
             let chunk_type = std::str::from_utf8(&chunk_header.chunk_type).unwrap();
             if !matches!(chunk_type, "OBJD" | "rsmp") {
@@ -116,9 +106,8 @@ pub fn rebuild_iff_file(
                     .entry(chunk_header.chunk_type)
                     .or_insert_with(std::vec::Vec::new)
                     .push((chunk_header, chunk_address_offset));
-                output_iff_file_bytes.extend_from_slice(
-                    &input_iff_file_bytes[i..i + usize::try_from(chunk_header.size).unwrap()],
-                );
+                output_iff_file_bytes
+                    .extend_from_slice(&input_iff_file_bytes[i..i + usize::try_from(chunk_header.size).unwrap()]);
             }
             i += usize::try_from(chunk_header.size).unwrap();
         }
@@ -126,8 +115,7 @@ pub fn rebuild_iff_file(
 
     // add our replacement chunks to the output iff
     for new_chunk in new_chunks {
-        let chunk_header =
-            ChunkHeader::from_bytes(&new_chunk[0..IFF_CHUNK_HEADER_SIZE].try_into().unwrap());
+        let chunk_header = ChunkHeader::from_bytes(&new_chunk[0..IFF_CHUNK_HEADER_SIZE].try_into().unwrap());
         let chunk_address_offset = u32::try_from(output_iff_file_bytes.len()).unwrap();
         chunk_descs
             .entry(chunk_header.chunk_type)

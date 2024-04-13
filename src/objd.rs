@@ -219,34 +219,21 @@ pub struct ObjectDefinition {
 
 impl ObjectDefinition {
     pub fn write(&self, mut writer: impl std::io::Write) {
-        let objd_chunk_header = iff::ChunkHeader::new(
-            "OBJD",
-            OBJD_CHUNK_DATA_SIZE,
-            self.chunk_id,
-            &self.chunk_label,
-        );
+        let objd_chunk_header = iff::ChunkHeader::new("OBJD", OBJD_CHUNK_DATA_SIZE, self.chunk_id, &self.chunk_label);
         objd_chunk_header.write(&mut writer);
 
         writer.write_all(&self.version.to_le_bytes()).unwrap();
-        writer
-            .write_all(&self.initialstacksize.to_le_bytes())
-            .unwrap();
+        writer.write_all(&self.initialstacksize.to_le_bytes()).unwrap();
         writer.write_all(&self.basegraphic.to_le_bytes()).unwrap();
         writer.write_all(&self.numgraphics.to_le_bytes()).unwrap();
         writer.write_all(&self.maintreeid.to_le_bytes()).unwrap();
-        writer
-            .write_all(&self.gardeningtreeid.to_le_bytes())
-            .unwrap();
+        writer.write_all(&self.gardeningtreeid.to_le_bytes()).unwrap();
         writer.write_all(&self.treetableid.to_le_bytes()).unwrap();
-        writer
-            .write_all(&self.interactiongroup.to_le_bytes())
-            .unwrap();
+        writer.write_all(&self.interactiongroup.to_le_bytes()).unwrap();
         writer.write_all(&self.object_type.to_le_bytes()).unwrap();
         writer.write_all(&self.masterid.to_le_bytes()).unwrap();
         writer.write_all(&self.subindex.to_le_bytes()).unwrap();
-        writer
-            .write_all(&self.washhandstreeid.to_le_bytes())
-            .unwrap();
+        writer.write_all(&self.washhandstreeid.to_le_bytes()).unwrap();
         writer.write_all(&self.animtableid.to_le_bytes()).unwrap();
         writer.write_all(&self.guid.to_le_bytes()).unwrap();
         writer.write_all(&self.disabled.to_le_bytes()).unwrap();
@@ -254,9 +241,7 @@ impl ObjectDefinition {
         writer.write_all(&self.price.to_le_bytes()).unwrap();
         writer.write_all(&self.bodystringsid.to_le_bytes()).unwrap();
         writer.write_all(&self.slotsid.to_le_bytes()).unwrap();
-        writer
-            .write_all(&self.allowintersectiontreeid.to_le_bytes())
-            .unwrap();
+        writer.write_all(&self.allowintersectiontreeid.to_le_bytes()).unwrap();
         writer.write_all(&self.usesfntable.to_le_bytes()).unwrap();
         writer.write_all(&self.unused4.to_le_bytes()).unwrap();
         writer.write_all(&self.preptreeid.to_le_bytes()).unwrap();
@@ -264,113 +249,57 @@ impl ObjectDefinition {
         writer.write_all(&self.surfacetreeid.to_le_bytes()).unwrap();
         writer.write_all(&self.disposetreeid.to_le_bytes()).unwrap();
         writer.write_all(&self.foodtreeid.to_le_bytes()).unwrap();
-        writer
-            .write_all(&self.pickupfromslottreeid.to_le_bytes())
-            .unwrap();
-        writer
-            .write_all(&self.washdishtreeid.to_le_bytes())
-            .unwrap();
-        writer
-            .write_all(&self.eatingsurfacetreeid.to_le_bytes())
-            .unwrap();
+        writer.write_all(&self.pickupfromslottreeid.to_le_bytes()).unwrap();
+        writer.write_all(&self.washdishtreeid.to_le_bytes()).unwrap();
+        writer.write_all(&self.eatingsurfacetreeid.to_le_bytes()).unwrap();
         writer.write_all(&self.sittreeid.to_le_bytes()).unwrap();
         writer.write_all(&self.standtreeid.to_le_bytes()).unwrap();
         writer.write_all(&self.saleprice.to_le_bytes()).unwrap();
-        writer
-            .write_all(&self.initialdepreciation.to_le_bytes())
-            .unwrap();
-        writer
-            .write_all(&self.dailydepreciation.to_le_bytes())
-            .unwrap();
-        writer
-            .write_all(&self.selfdepreciating.to_le_bytes())
-            .unwrap();
-        writer
-            .write_all(&self.depreciationlimit.to_le_bytes())
-            .unwrap();
+        writer.write_all(&self.initialdepreciation.to_le_bytes()).unwrap();
+        writer.write_all(&self.dailydepreciation.to_le_bytes()).unwrap();
+        writer.write_all(&self.selfdepreciating.to_le_bytes()).unwrap();
+        writer.write_all(&self.depreciationlimit.to_le_bytes()).unwrap();
         writer.write_all(&self.roomflags.to_le_bytes()).unwrap();
         writer.write_all(&self.functionflags.to_le_bytes()).unwrap();
         writer.write_all(&self.catalogid.to_le_bytes()).unwrap();
-        writer
-            .write_all(&self.globalsimulationobject.to_le_bytes())
-            .unwrap();
+        writer.write_all(&self.globalsimulationobject.to_le_bytes()).unwrap();
         writer.write_all(&self.inittreeid.to_le_bytes()).unwrap();
-        writer
-            .write_all(&self.placementtreeid.to_le_bytes())
-            .unwrap();
-        writer
-            .write_all(&self.userpickuptreeid.to_le_bytes())
-            .unwrap();
+        writer.write_all(&self.placementtreeid.to_le_bytes()).unwrap();
+        writer.write_all(&self.userpickuptreeid.to_le_bytes()).unwrap();
         writer.write_all(&self.wallstyle.to_le_bytes()).unwrap();
         writer.write_all(&self.loadtreeid.to_le_bytes()).unwrap();
-        writer
-            .write_all(&self.userplacementtreeid.to_le_bytes())
-            .unwrap();
+        writer.write_all(&self.userplacementtreeid.to_le_bytes()).unwrap();
         writer.write_all(&self.objectversion.to_le_bytes()).unwrap();
-        writer
-            .write_all(&self.roomchangedtreeid.to_le_bytes())
-            .unwrap();
-        writer
-            .write_all(&self.motiveeffectsid.to_le_bytes())
-            .unwrap();
+        writer.write_all(&self.roomchangedtreeid.to_le_bytes()).unwrap();
+        writer.write_all(&self.motiveeffectsid.to_le_bytes()).unwrap();
         writer.write_all(&self.cleanuptreeid.to_le_bytes()).unwrap();
-        writer
-            .write_all(&self.levelinforequesttreeid.to_le_bytes())
-            .unwrap();
-        writer
-            .write_all(&self.catalogpopupid.to_le_bytes())
-            .unwrap();
-        writer
-            .write_all(&self.servingsurfacetreeid.to_le_bytes())
-            .unwrap();
+        writer.write_all(&self.levelinforequesttreeid.to_le_bytes()).unwrap();
+        writer.write_all(&self.catalogpopupid.to_le_bytes()).unwrap();
+        writer.write_all(&self.servingsurfacetreeid.to_le_bytes()).unwrap();
         writer.write_all(&self.leveloffset.to_le_bytes()).unwrap();
         writer.write_all(&self.shadow.to_le_bytes()).unwrap();
         writer.write_all(&self.numattributes.to_le_bytes()).unwrap();
         writer.write_all(&self.cleantreeid.to_le_bytes()).unwrap();
-        writer
-            .write_all(&self.queueskippedtreeid.to_le_bytes())
-            .unwrap();
-        writer
-            .write_all(&self.frontfacedirection.to_le_bytes())
-            .unwrap();
-        writer
-            .write_all(&self.walladjacencychangedtreeid.to_le_bytes())
-            .unwrap();
+        writer.write_all(&self.queueskippedtreeid.to_le_bytes()).unwrap();
+        writer.write_all(&self.frontfacedirection.to_le_bytes()).unwrap();
+        writer.write_all(&self.walladjacencychangedtreeid.to_le_bytes()).unwrap();
         writer.write_all(&self.leadobject.to_le_bytes()).unwrap();
-        writer
-            .write_all(&self.dynspritebaseid.to_le_bytes())
-            .unwrap();
+        writer.write_all(&self.dynspritebaseid.to_le_bytes()).unwrap();
         writer.write_all(&self.numdynsprites.to_le_bytes()).unwrap();
-        writer
-            .write_all(&self.chairentryflags.to_le_bytes())
-            .unwrap();
+        writer.write_all(&self.chairentryflags.to_le_bytes()).unwrap();
         writer.write_all(&self.tilewidth.to_le_bytes()).unwrap();
-        writer
-            .write_all(&self.suitnotcopyable.to_le_bytes())
-            .unwrap();
+        writer.write_all(&self.suitnotcopyable.to_le_bytes()).unwrap();
         writer.write_all(&self.buildmodetype.to_le_bytes()).unwrap();
         writer.write_all(&self.originalguid.to_le_bytes()).unwrap();
-        writer
-            .write_all(&self.originalsuitguid.to_le_bytes())
-            .unwrap();
+        writer.write_all(&self.originalsuitguid.to_le_bytes()).unwrap();
         writer.write_all(&self.pickuptreeid.to_le_bytes()).unwrap();
-        writer
-            .write_all(&self.thumbnailgraphicindex.to_le_bytes())
-            .unwrap();
+        writer.write_all(&self.thumbnailgraphicindex.to_le_bytes()).unwrap();
         writer.write_all(&self.shadowflags.to_le_bytes()).unwrap();
-        writer
-            .write_all(&self.footprintinsetmask.to_le_bytes())
-            .unwrap();
-        writer
-            .write_all(&self.mtadjupdatetreeid.to_le_bytes())
-            .unwrap();
-        writer
-            .write_all(&self.shadowbrightness.to_le_bytes())
-            .unwrap();
+        writer.write_all(&self.footprintinsetmask.to_le_bytes()).unwrap();
+        writer.write_all(&self.mtadjupdatetreeid.to_le_bytes()).unwrap();
+        writer.write_all(&self.shadowbrightness.to_le_bytes()).unwrap();
         writer.write_all(&self.repairtreeid.to_le_bytes()).unwrap();
-        writer
-            .write_all(&self.customwallstyleid.to_le_bytes())
-            .unwrap();
+        writer.write_all(&self.customwallstyleid.to_le_bytes()).unwrap();
         writer.write_all(&self.ratinghunger.to_le_bytes()).unwrap();
         writer.write_all(&self.ratingcomfort.to_le_bytes()).unwrap();
         writer.write_all(&self.ratinghygiene.to_le_bytes()).unwrap();
@@ -378,23 +307,15 @@ impl ObjectDefinition {
         writer.write_all(&self.ratingenergy.to_le_bytes()).unwrap();
         writer.write_all(&self.ratingfun.to_le_bytes()).unwrap();
         writer.write_all(&self.ratingroom.to_le_bytes()).unwrap();
-        writer
-            .write_all(&self.ratingskillflags.to_le_bytes())
-            .unwrap();
-        writer
-            .write_all(&self.numtypeattributes.to_le_bytes())
-            .unwrap();
+        writer.write_all(&self.ratingskillflags.to_le_bytes()).unwrap();
+        writer.write_all(&self.numtypeattributes.to_le_bytes()).unwrap();
         writer.write_all(&self.miscflags.to_le_bytes()).unwrap();
         writer.write_all(&self.typeattrguid.to_le_bytes()).unwrap();
-        writer
-            .write_all(&self.functionsubsort.to_le_bytes())
-            .unwrap();
+        writer.write_all(&self.functionsubsort.to_le_bytes()).unwrap();
         writer.write_all(&self.downtownsort.to_le_bytes()).unwrap();
         writer.write_all(&self.keepbuying.to_le_bytes()).unwrap();
         writer.write_all(&self.vacationsort.to_le_bytes()).unwrap();
-        writer
-            .write_all(&self.resetlotaction.to_le_bytes())
-            .unwrap();
+        writer.write_all(&self.resetlotaction.to_le_bytes()).unwrap();
         writer.write_all(&self.communitysort.to_le_bytes()).unwrap();
         writer.write_all(&self.dreamflags.to_le_bytes()).unwrap();
         writer.write_all(&self.renderflags.to_le_bytes()).unwrap();

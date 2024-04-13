@@ -52,10 +52,7 @@ where
     }
 }
 
-fn serialize_draw_group_zoom_level<S>(
-    zoom_level: &ZoomLevel,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
+fn serialize_draw_group_zoom_level<S>(zoom_level: &ZoomLevel, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {

@@ -18,24 +18,17 @@ pub struct SpriteDescription {
     pub offsets: SpriteOffsets,
 }
 
-pub fn get_sprite_description_file_path(
-    alpha_sprite_file_path: &std::path::Path,
-) -> std::path::PathBuf {
+pub fn get_sprite_description_file_path(alpha_sprite_file_path: &std::path::Path) -> std::path::PathBuf {
     let alpha_sprite_file_path = alpha_sprite_file_path.to_str().unwrap();
     let alpha_sprite_file_path = alpha_sprite_file_path.strip_suffix("_a.bmp").unwrap();
     let alpha_sprite_file_path = alpha_sprite_file_path.to_owned() + " description.txt";
     alpha_sprite_file_path.into()
 }
 
-pub fn read_sprite_description_file(
-    alpha_sprite_file_path: &std::path::Path,
-) -> Option<SpriteDescription> {
+pub fn read_sprite_description_file(alpha_sprite_file_path: &std::path::Path) -> Option<SpriteDescription> {
     let sprite_description_file_path = get_sprite_description_file_path(alpha_sprite_file_path);
     let sprite_description = std::fs::read_to_string(sprite_description_file_path).ok()?;
-    let sprite_description: Vec<i32> = sprite_description
-        .split(' ')
-        .map(|x| x.parse::<i32>().unwrap())
-        .collect();
+    let sprite_description: Vec<i32> = sprite_description.split(' ').map(|x| x.parse::<i32>().unwrap()).collect();
     #[allow(clippy::get_first)]
     Some(SpriteDescription {
         bounds: SpriteBounds {
@@ -52,10 +45,7 @@ pub fn read_sprite_description_file(
     })
 }
 
-pub fn calculate_sprite_description(
-    alpha_sprite: &image::GrayImage,
-    zoom_level: dgrp::ZoomLevel,
-) -> SpriteDescription {
+pub fn calculate_sprite_description(alpha_sprite: &image::GrayImage, zoom_level: dgrp::ZoomLevel) -> SpriteDescription {
     let bounds_left = {
         let mut bounds_left = 0;
         'outer: for x in 0..alpha_sprite.width() {
@@ -105,8 +95,7 @@ pub fn calculate_sprite_description(
         bounds_bottom + 1
     };
 
-    let left_bound_flipped =
-        i32::try_from(alpha_sprite.width()).unwrap() - i32::try_from(bounds_right).unwrap();
+    let left_bound_flipped = i32::try_from(alpha_sprite.width()).unwrap() - i32::try_from(bounds_right).unwrap();
     const SPRITE_CENTER_X: i32 = 68;
     const SPRITE_CENTER_Y: i32 = 348;
     let (sprite_center_x, sprite_center_y) = match zoom_level {
