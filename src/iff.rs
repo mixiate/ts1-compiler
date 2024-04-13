@@ -128,7 +128,7 @@ pub fn rebuild_iff_file(
                 ChunkHeader::from_bytes(&input_iff_file_bytes[i..i + IFF_CHUNK_HEADER_SIZE].try_into().unwrap());
             let chunk_address_offset = u32::try_from(output_iff_file_bytes.len()).unwrap();
             let chunk_type = std::str::from_utf8(&chunk_header.chunk_type).unwrap();
-            if !matches!(chunk_type, "DGRP" | "OBJD" | "PALT" | "SLOT" | "SPR2" | "rsmp") {
+            if !matches!(chunk_type, "DGRP" | "OBJD" | "PALT" | "SLOT" | "SPR#" | "SPR2" | "rsmp") {
                 chunk_descs
                     .entry(chunk_header.chunk_type)
                     .or_insert_with(std::vec::Vec::new)

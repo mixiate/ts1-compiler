@@ -33,7 +33,7 @@ pub struct Sprite {
     #[serde(rename = "@defaultpaletteid")]
     pub palette_chunk_id: iff::ChunkId,
     #[serde(rename = "@framecount")]
-    pub frame_count: i32,
+    pub sprite_frame_count: i32,
     #[serde(rename = "@iscustomwallstyle")]
     is_custom_wall_style: i32,
     #[serde(rename = "spriteframe")]
@@ -98,9 +98,258 @@ struct SpriteChannel {
 impl Sprite {
     pub fn to_chunk_bytes(&self, source_directory: &std::path::Path) -> Vec<u8> {
         match self.sprite_type {
-            SpriteType::Spr1 => panic!(),
+            SpriteType::Spr1 => self.to_spr1_chunk_bytes(source_directory),
             SpriteType::Spr2 => self.to_spr2_chunk_bytes(source_directory),
         }
+    }
+
+    fn to_spr1_chunk_bytes(&self, source_directory: &std::path::Path) -> Vec<u8> {
+        assert!(self.sprite_type == SpriteType::Spr1);
+
+        let mut frame_datas = std::vec::Vec::new();
+        for frame in &self.sprite_frames {
+            let (width, height, pixels) = {
+                let file_path =
+                    source_directory.join(frame.sprite_channel_file_path_relative(SpriteChannelType::Depth));
+                let bmp_buffer = std::io::BufReader::new(std::fs::File::open(&file_path).unwrap());
+                let mut bmp = image::codecs::bmp::BmpDecoder::new(bmp_buffer).unwrap();
+                bmp.set_indexed_color(true);
+                let (width, height) = bmp.dimensions();
+                let mut pixels = vec![0u8; usize::try_from(width * height).unwrap()];
+                use image::ImageDecoder;
+                bmp.read_image(&mut pixels).unwrap();
+                (width, height, pixels)
+            };
+
+            let mut frame_data = std::vec::Vec::<u8>::new();
+            frame_data.extend_from_slice(&0u32.to_le_bytes());
+            frame_data.extend_from_slice(&u16::try_from(height).unwrap().to_le_bytes());
+            frame_data.extend_from_slice(&u16::try_from(width).unwrap().to_le_bytes());
+
+            let width = usize::try_from(width).unwrap();
+            let height = usize::try_from(height).unwrap();
+
+            let transparent_colour_index = if self.palette_chunk_id.as_i16().is_positive() {
+                frame.transparent_colour_index
+            } else {
+                255
+            };
+
+            enum RowCommand {
+                StartSprite,
+                Start,
+                Opaque,
+                OpaqueRepeat,
+                Transparent,
+                TransparentRows,
+                EndSprite,
+            }
+
+            fn row_command(command: RowCommand) -> u8 {
+                match command {
+                    RowCommand::StartSprite => 0,
+                    RowCommand::Start => 4,
+                    RowCommand::Opaque => 3,
+                    RowCommand::OpaqueRepeat => 2,
+                    RowCommand::Transparent => 1,
+                    RowCommand::TransparentRows => 9,
+                    RowCommand::EndSprite => 5,
+                }
+            }
+
+            let start_sprite_command = row_command(RowCommand::StartSprite);
+            frame_data.extend_from_slice(&start_sprite_command.to_le_bytes());
+            frame_data.extend_from_slice(&0u8.to_le_bytes());
+
+            let mut y = 0;
+            while y < height {
+                let mut row_commands = std::vec::Vec::new();
+
+                let row_index = y * width;
+
+                if let Some(i) = pixels[row_index..].iter().position(|x| *x != transparent_colour_index) {
+                    let transparent_row_count = i / width;
+                    if transparent_row_count >= 1 {
+                        let row_command_length = u8::try_from(transparent_row_count).unwrap();
+                        let row_command = row_command(RowCommand::TransparentRows);
+                        frame_data.extend_from_slice(&row_command.to_le_bytes());
+                        frame_data.extend_from_slice(&row_command_length.to_le_bytes());
+
+                        y += transparent_row_count;
+                        continue;
+                    }
+                }
+
+                let mut x = 0;
+                let mut ongoing_unique_range: Option<Vec<u8>> = None;
+                const REPEAT_THRESHOLD: usize = 8;
+                while x < width {
+                    if pixels[row_index + x] == transparent_colour_index {
+                        let mut transparent_width = 1;
+                        while x + transparent_width < width {
+                            let color_pixel = pixels[row_index + x + transparent_width];
+                            if color_pixel == transparent_colour_index {
+                                transparent_width += 1;
+                            } else {
+                                break;
+                            }
+                        }
+
+                        if x + transparent_width == width {
+                            break;
+                        }
+
+                        let row_command_length = u8::try_from(transparent_width).unwrap();
+                        let row_command = row_command(RowCommand::Transparent);
+                        row_commands.extend_from_slice(&row_command.to_le_bytes());
+                        row_commands.extend_from_slice(&row_command_length.to_le_bytes());
+
+                        x += transparent_width;
+                    } else {
+                        let mut range_x = x;
+                        while range_x < width {
+                            let first_pixel = pixels[row_index + range_x];
+                            if first_pixel == transparent_colour_index {
+                                break;
+                            }
+                            if range_x + 1 == width {
+                                let mut unique_range = ongoing_unique_range.unwrap_or_default();
+                                unique_range.push(pixels[row_index + x]);
+                                ongoing_unique_range = Some(unique_range);
+
+                                range_x += 1;
+                                break;
+                            }
+                            let next_pixel = pixels[row_index + range_x + 1];
+
+                            if next_pixel == transparent_colour_index {
+                                let mut unique_range = ongoing_unique_range.unwrap_or_default();
+                                unique_range.push(pixels[row_index + x]);
+                                ongoing_unique_range = Some(unique_range);
+
+                                range_x += 1;
+                                break;
+                            }
+
+                            if first_pixel == next_pixel {
+                                let mut repeated_width = 1;
+                                while range_x + repeated_width < width {
+                                    let color_pixel = pixels[row_index + range_x + repeated_width];
+                                    if color_pixel == first_pixel {
+                                        repeated_width += 1;
+                                    } else {
+                                        break;
+                                    }
+                                }
+
+                                if repeated_width >= REPEAT_THRESHOLD && ongoing_unique_range.is_some() {
+                                    break;
+                                } else if repeated_width >= REPEAT_THRESHOLD && ongoing_unique_range.is_none() {
+                                    let row_command_length = u8::try_from(repeated_width).unwrap();
+                                    let row_command = row_command(RowCommand::OpaqueRepeat);
+                                    row_commands.extend_from_slice(&row_command.to_le_bytes());
+                                    row_commands.extend_from_slice(&row_command_length.to_le_bytes());
+
+                                    if self.palette_chunk_id.as_i16().is_positive() {
+                                        row_commands.push(pixels[row_index + range_x + x]);
+                                    } else {
+                                        row_commands.push(0);
+                                    }
+                                    row_commands.push(0);
+                                } else {
+                                    let mut unique_range = ongoing_unique_range.unwrap_or_default();
+                                    if self.palette_chunk_id.as_i16().is_positive() {
+                                        unique_range.extend_from_slice(
+                                            &pixels[row_index + range_x..row_index + range_x + repeated_width],
+                                        );
+                                    } else {
+                                        unique_range.resize(unique_range.len() + repeated_width, 0);
+                                    }
+                                    ongoing_unique_range = Some(unique_range);
+                                }
+
+                                range_x += repeated_width;
+                            } else {
+                                let mut unique_width = 1;
+                                let mut previous_pixel = first_pixel;
+                                while range_x + unique_width < width {
+                                    let color_pixel = pixels[row_index + range_x + unique_width];
+                                    if color_pixel != previous_pixel && color_pixel != transparent_colour_index {
+                                        unique_width += 1;
+                                    } else {
+                                        break;
+                                    }
+                                    previous_pixel = color_pixel;
+                                }
+
+                                let mut unique_range = ongoing_unique_range.unwrap_or_default();
+                                unique_range.extend_from_slice(&pixels[row_index + x..row_index + x + unique_width]);
+                                ongoing_unique_range = Some(unique_range);
+
+                                range_x += unique_width;
+                            }
+                        }
+
+                        x = range_x;
+                    }
+                    if let Some(range) = ongoing_unique_range.as_mut() {
+                        let row_command_length = u8::try_from(range.len()).unwrap();
+                        let row_command = row_command(RowCommand::Opaque);
+                        row_commands.extend_from_slice(&row_command.to_le_bytes());
+                        row_commands.extend_from_slice(&row_command_length.to_le_bytes());
+
+                        row_commands.append(range);
+                        if row_command_length % 2 != 0 {
+                            row_commands.push(0);
+                        }
+
+                        ongoing_unique_range = None;
+                    }
+                }
+
+                let start_command_length = 2 + u8::try_from(row_commands.len()).unwrap();
+                let start_command = row_command(RowCommand::Start);
+                frame_data.extend_from_slice(&start_command.to_le_bytes());
+                frame_data.extend_from_slice(&start_command_length.to_le_bytes());
+
+                frame_data.extend_from_slice(row_commands.as_slice());
+
+                y += 1;
+            }
+
+            let end_sprite_command = row_command(RowCommand::EndSprite);
+            frame_data.extend_from_slice(&end_sprite_command.to_le_bytes());
+            frame_data.extend_from_slice(&0u8.to_le_bytes());
+
+            frame_datas.push(frame_data);
+        }
+
+        const SPR1_VERSION: u32 = 504;
+
+        let mut spr1_data = std::vec::Vec::<u8>::new();
+        spr1_data.extend_from_slice(&SPR1_VERSION.to_le_bytes());
+        spr1_data.extend_from_slice(&u32::try_from(self.sprite_frame_count).unwrap().to_le_bytes());
+        spr1_data.extend_from_slice(&self.palette_chunk_id.as_i32().to_le_bytes());
+
+        let mut frame_address = u32::try_from(
+            spr1_data.len() + (usize::try_from(self.sprite_frame_count).unwrap() * std::mem::size_of::<u32>()),
+        )
+        .unwrap();
+        for frame_data in &frame_datas {
+            spr1_data.extend_from_slice(&frame_address.to_le_bytes());
+            frame_address += u32::try_from(frame_data.len()).unwrap();
+        }
+
+        for frame_data in &frame_datas {
+            spr1_data.extend_from_slice(frame_data.as_slice());
+        }
+
+        let mut spr1_chunk = std::vec::Vec::new();
+        let spr1_chunk_header = iff::ChunkHeader::new("SPR#", spr1_data.len(), self.chunk_id, &self.chunk_label);
+        spr1_chunk_header.write(&mut spr1_chunk);
+        spr1_chunk.extend_from_slice(spr1_data.as_slice());
+
+        spr1_chunk
     }
 
     fn to_spr2_chunk_bytes(&self, source_directory: &std::path::Path) -> Vec<u8> {
