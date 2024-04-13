@@ -66,7 +66,7 @@ pub struct SpriteFrame {
     #[serde(rename = "@transparentpixel")]
     pub transparent_colour_index: u8,
     #[serde(rename = "spritechannel")]
-    pub sprite_channels: Vec<SpriteChannel>,
+    sprite_channels: Vec<SpriteChannel>,
 }
 
 impl SpriteFrame {
@@ -88,11 +88,11 @@ pub enum SpriteChannelType {
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct SpriteChannel {
+struct SpriteChannel {
     #[serde(rename = "@type")]
-    pub channel_type: SpriteChannelType,
+    channel_type: SpriteChannelType,
     #[serde(rename = "@filename")]
-    pub file_path_relative: String,
+    file_path_relative: String,
 }
 
 impl Sprite {

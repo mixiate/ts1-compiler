@@ -35,15 +35,11 @@ pub fn create_palt_chunks(
     for sprite in sprites {
         palette_chunks.entry(sprite.palette_chunk_id).or_insert_with(|| {
             let colour_sprite_file_path = source_directory.join(
-                &sprite
+                sprite
                     .sprite_frames
                     .first()
                     .unwrap()
-                    .sprite_channels
-                    .iter()
-                    .find(|x| x.channel_type == spr::SpriteChannelType::Colour)
-                    .unwrap()
-                    .file_path_relative,
+                    .sprite_channel_file_path_relative(spr::SpriteChannelType::Colour),
             );
             create_palt_chunk(sprite.palette_chunk_id, &colour_sprite_file_path)
         });
