@@ -104,7 +104,7 @@ pub fn calculate_sprite_description(alpha_sprite: &image::GrayImage, zoom_level:
         dgrp::ZoomLevel::Two => (SPRITE_CENTER_X / 4, SPRITE_CENTER_Y / 4),
     };
     let offset_x = 0 - (sprite_center_x - i32::try_from(bounds_left).unwrap());
-    let offset_y = 0 - (sprite_center_y - i32::try_from(bounds_bottom).unwrap() - 1);
+    let offset_y = 0 - (sprite_center_y - i32::try_from(bounds_bottom).unwrap());
     let offset_x_flipped = 0 - (sprite_center_x - left_bound_flipped);
 
     SpriteDescription {
