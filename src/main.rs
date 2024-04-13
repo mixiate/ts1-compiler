@@ -23,7 +23,6 @@ fn main() {
     let the_sims_install_path = the_sims::install_path();
     let input_iff_file_path =
         the_sims_install_path.clone().join(&iff_description.iff_file_path_relative).with_extension("iff");
-    println!("{}", input_iff_file_path.display());
 
     iff::rebuild_iff_file(&iff_description, &input_iff_file_path, &input_iff_file_path);
 
