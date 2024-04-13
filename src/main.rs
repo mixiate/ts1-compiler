@@ -1,6 +1,7 @@
 mod dgrp;
 mod iff;
 mod objd;
+mod palt;
 mod slot;
 mod spr;
 mod sprite;
@@ -24,7 +25,12 @@ fn main() {
     let input_iff_file_path =
         the_sims_install_path.clone().join(&iff_description.iff_file_path_relative).with_extension("iff");
 
-    iff::rebuild_iff_file(&iff_description, &input_iff_file_path, &input_iff_file_path);
+    iff::rebuild_iff_file(
+        source_directory,
+        &iff_description,
+        &input_iff_file_path,
+        &input_iff_file_path,
+    );
 
     let xml_header = include_str!("../res/header.xml");
 

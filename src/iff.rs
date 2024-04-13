@@ -1,11 +1,12 @@
 use crate::objd;
+use crate::palt;
 use crate::xml;
 
 pub const IFF_FILE_HEADER_SIZE: usize = 64;
 pub const IFF_CHUNK_HEADER_SIZE: usize = 76;
 pub const IFF_CHUNK_LABEL_SIZE: usize = 64;
 
-#[derive(Copy, Clone, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, serde::Deserialize, serde::Serialize)]
 pub struct ChunkId(u16);
 
 impl ChunkId {
@@ -72,6 +73,7 @@ impl ChunkHeader {
 }
 
 pub fn rebuild_iff_file(
+    source_directory: &std::path::Path,
     iff_description: &xml::IffDescription,
     input_iff_file_path: &std::path::Path,
     output_iff_file_path: &std::path::Path,
@@ -102,6 +104,12 @@ pub fn rebuild_iff_file(
         new_chunks.push(dgrp_chunk);
     }
 
+    // create PALT chunks
+    {
+        let palt_chunks = palt::create_palt_chunks(source_directory, &iff_description.sprites.sprites);
+        new_chunks.extend(palt_chunks.into_values());
+    }
+
     // create the output iff file, copying the header from the input file
     let mut output_iff_file_bytes = std::vec::Vec::new();
     output_iff_file_bytes.extend_from_slice(&input_iff_file_bytes[0..IFF_FILE_HEADER_SIZE]);
@@ -115,7 +123,7 @@ pub fn rebuild_iff_file(
                 ChunkHeader::from_bytes(&input_iff_file_bytes[i..i + IFF_CHUNK_HEADER_SIZE].try_into().unwrap());
             let chunk_address_offset = u32::try_from(output_iff_file_bytes.len()).unwrap();
             let chunk_type = std::str::from_utf8(&chunk_header.chunk_type).unwrap();
-            if !matches!(chunk_type, "DGRP" | "OBJD" | "SLOT" | "rsmp") {
+            if !matches!(chunk_type, "DGRP" | "OBJD" | "PALT" | "SLOT" | "rsmp") {
                 chunk_descs
                     .entry(chunk_header.chunk_type)
                     .or_insert_with(std::vec::Vec::new)
