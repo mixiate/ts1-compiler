@@ -126,8 +126,8 @@ impl IffDescription {
                                 } else {
                                     sprite_description.offsets.x_flipped
                                 };
-                                draw_group_item.x = offset_x;
-                                draw_group_item.y = sprite_description.offsets.y;
+                                draw_group_item.sprite_offset_x = offset_x;
+                                draw_group_item.sprite_offset_y = sprite_description.offsets.y;
                             }
                         }
                     }

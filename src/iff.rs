@@ -9,6 +9,10 @@ pub const IFF_CHUNK_LABEL_SIZE: usize = 64;
 pub struct ChunkId(u16);
 
 impl ChunkId {
+    pub fn as_u32(self) -> u32 {
+        u32::from(self.0)
+    }
+
     pub fn from_be_bytes(bytes: [u8; 2]) -> ChunkId {
         ChunkId(u16::from_be_bytes(bytes))
     }
@@ -95,6 +99,13 @@ pub fn rebuild_iff_file(
         new_chunks.push(slot_chunk);
     }
 
+    // create DGRP chunks
+    for draw_group in &iff_description.draw_groups.draw_groups {
+        let mut dgrp_chunk = std::vec::Vec::new();
+        draw_group.write(&mut dgrp_chunk);
+        new_chunks.push(dgrp_chunk);
+    }
+
     // create the output iff file, copying the header from the input file
     let mut output_iff_file_bytes = std::vec::Vec::new();
     output_iff_file_bytes.extend_from_slice(&input_iff_file_bytes[0..IFF_FILE_HEADER_SIZE]);
@@ -108,7 +119,7 @@ pub fn rebuild_iff_file(
                 ChunkHeader::from_bytes(&input_iff_file_bytes[i..i + IFF_CHUNK_HEADER_SIZE].try_into().unwrap());
             let chunk_address_offset = u32::try_from(output_iff_file_bytes.len()).unwrap();
             let chunk_type = std::str::from_utf8(&chunk_header.chunk_type).unwrap();
-            if !matches!(chunk_type, "OBJD" | "SLOT" | "rsmp") {
+            if !matches!(chunk_type, "DGRP" | "OBJD" | "SLOT" | "rsmp") {
                 chunk_descs
                     .entry(chunk_header.chunk_type)
                     .or_insert_with(std::vec::Vec::new)

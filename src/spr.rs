@@ -4,6 +4,12 @@ use crate::iff;
 #[derive(Copy, Clone, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct SpriteIndex(u32);
 
+impl SpriteIndex {
+    pub fn as_u32(self) -> u32 {
+        self.0
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub enum SpriteType {
