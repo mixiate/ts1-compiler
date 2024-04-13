@@ -14,13 +14,13 @@ pub struct DrawGroup {
 
 #[derive(Copy, Clone, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-pub enum Direction {
-    #[serde(rename = "1")]
-    SouthEast,
-    #[serde(rename = "4")]
-    NorthEast,
+pub enum Rotation {
     #[serde(rename = "16")]
     NorthWest,
+    #[serde(rename = "4")]
+    NorthEast,
+    #[serde(rename = "1")]
+    SouthEast,
     #[serde(rename = "64")]
     SouthWest,
 }
@@ -68,7 +68,7 @@ where
 #[serde(deny_unknown_fields)]
 pub struct DrawGroupItemList {
     #[serde(rename = "@dirflags")]
-    pub direction: Direction,
+    pub rotation: Rotation,
     #[serde(
         deserialize_with = "deserialize_draw_group_zoom_level",
         serialize_with = "serialize_draw_group_zoom_level",
@@ -111,11 +111,11 @@ impl DrawGroup {
         dgrp_data.extend_from_slice(&DGRP_HEADER_IMAGE_COUNT.to_le_bytes());
 
         for draw_group_item_list in &self.draw_group_item_lists {
-            let direction = match draw_group_item_list.direction {
-                Direction::SouthEast => 1u32,
-                Direction::NorthEast => 4u32,
-                Direction::NorthWest => 16u32,
-                Direction::SouthWest => 64u32,
+            let rotation = match draw_group_item_list.rotation {
+                Rotation::NorthWest => 16u32,
+                Rotation::NorthEast => 4u32,
+                Rotation::SouthEast => 1u32,
+                Rotation::SouthWest => 64u32,
             };
             let zoom_level = match draw_group_item_list.zoom_level {
                 ZoomLevel::Zero => 1u32,
@@ -124,7 +124,7 @@ impl DrawGroup {
             };
             let sprite_count = u32::try_from(draw_group_item_list.draw_group_items.len()).unwrap();
 
-            dgrp_data.extend_from_slice(&direction.to_le_bytes());
+            dgrp_data.extend_from_slice(&rotation.to_le_bytes());
             dgrp_data.extend_from_slice(&zoom_level.to_le_bytes());
             dgrp_data.extend_from_slice(&sprite_count.to_le_bytes());
 
