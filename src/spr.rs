@@ -64,7 +64,7 @@ pub struct SpriteFrame {
     #[serde(rename = "@paletteid")]
     pub palette_chunk_id: iff::ChunkId,
     #[serde(rename = "@transparentpixel")]
-    pub transparent_colour_index: u8,
+    pub transparent_color_index: u8,
     #[serde(rename = "spritechannel")]
     sprite_channels: Vec<SpriteChannel>,
 }
@@ -79,7 +79,7 @@ impl SpriteFrame {
 #[serde(deny_unknown_fields)]
 pub enum SpriteChannelType {
     #[serde(rename = "p")]
-    Colour,
+    Color,
     #[serde(rename = "z")]
     Depth,
     #[serde(rename = "a")]
@@ -96,14 +96,14 @@ struct SpriteChannel {
 }
 
 impl Sprite {
-    pub fn to_chunk_bytes(&self, source_directory: &std::path::Path, transparent_colour_index: u8) -> Vec<u8> {
+    pub fn to_chunk_bytes(&self, source_directory: &std::path::Path, transparent_color_index: u8) -> Vec<u8> {
         match self.sprite_type {
-            SpriteType::Spr1 => self.to_spr1_chunk_bytes(source_directory, transparent_colour_index),
-            SpriteType::Spr2 => self.to_spr2_chunk_bytes(source_directory, transparent_colour_index),
+            SpriteType::Spr1 => self.to_spr1_chunk_bytes(source_directory, transparent_color_index),
+            SpriteType::Spr2 => self.to_spr2_chunk_bytes(source_directory, transparent_color_index),
         }
     }
 
-    fn to_spr1_chunk_bytes(&self, source_directory: &std::path::Path, transparent_colour_index: u8) -> Vec<u8> {
+    fn to_spr1_chunk_bytes(&self, source_directory: &std::path::Path, transparent_color_index: u8) -> Vec<u8> {
         assert!(self.sprite_type == SpriteType::Spr1);
 
         let mut frame_datas = std::vec::Vec::new();
@@ -161,7 +161,7 @@ impl Sprite {
 
                 let row_index = y * width;
 
-                if let Some(i) = pixels[row_index..].iter().position(|x| *x != transparent_colour_index) {
+                if let Some(i) = pixels[row_index..].iter().position(|x| *x != transparent_color_index) {
                     let transparent_row_count = i / width;
                     if transparent_row_count >= 1 {
                         let row_command_length = u8::try_from(transparent_row_count).unwrap();
@@ -178,11 +178,11 @@ impl Sprite {
                 let mut ongoing_unique_range: Option<Vec<u8>> = None;
                 const REPEAT_THRESHOLD: usize = 8;
                 while x < width {
-                    if pixels[row_index + x] == transparent_colour_index {
+                    if pixels[row_index + x] == transparent_color_index {
                         let mut transparent_width = 1;
                         while x + transparent_width < width {
                             let color_pixel = pixels[row_index + x + transparent_width];
-                            if color_pixel == transparent_colour_index {
+                            if color_pixel == transparent_color_index {
                                 transparent_width += 1;
                             } else {
                                 break;
@@ -203,7 +203,7 @@ impl Sprite {
                         let mut range_x = x;
                         while range_x < width {
                             let first_pixel = pixels[row_index + range_x];
-                            if first_pixel == transparent_colour_index {
+                            if first_pixel == transparent_color_index {
                                 break;
                             }
                             if range_x + 1 == width {
@@ -216,7 +216,7 @@ impl Sprite {
                             }
                             let next_pixel = pixels[row_index + range_x + 1];
 
-                            if next_pixel == transparent_colour_index {
+                            if next_pixel == transparent_color_index {
                                 let mut unique_range = ongoing_unique_range.unwrap_or_default();
                                 unique_range.push(pixels[row_index + x]);
                                 ongoing_unique_range = Some(unique_range);
@@ -268,7 +268,7 @@ impl Sprite {
                                 let mut previous_pixel = first_pixel;
                                 while range_x + unique_width < width {
                                     let color_pixel = pixels[row_index + range_x + unique_width];
-                                    if color_pixel != previous_pixel && color_pixel != transparent_colour_index {
+                                    if color_pixel != previous_pixel && color_pixel != transparent_color_index {
                                         unique_width += 1;
                                     } else {
                                         break;
@@ -346,7 +346,7 @@ impl Sprite {
         spr1_chunk
     }
 
-    fn to_spr2_chunk_bytes(&self, source_directory: &std::path::Path, transparent_colour_index: u8) -> Vec<u8> {
+    fn to_spr2_chunk_bytes(&self, source_directory: &std::path::Path, transparent_color_index: u8) -> Vec<u8> {
         assert!(self.sprite_type == SpriteType::Spr2);
 
         let mut frame_datas = std::vec::Vec::new();
@@ -355,7 +355,7 @@ impl Sprite {
             let height = u32::try_from(frame.bounds_bottom - frame.bounds_top).unwrap();
             let (pixels_p, pixels_z, pixels_a) = {
                 let file_path_p =
-                    source_directory.join(frame.sprite_channel_file_path_relative(SpriteChannelType::Colour));
+                    source_directory.join(frame.sprite_channel_file_path_relative(SpriteChannelType::Color));
                 let file_path_z =
                     source_directory.join(frame.sprite_channel_file_path_relative(SpriteChannelType::Depth));
                 let file_path_a =
@@ -389,7 +389,7 @@ impl Sprite {
             frame_data.extend_from_slice(&u16::try_from(height).unwrap().to_le_bytes());
             frame_data.extend_from_slice(&SPRITE_FLAGS.to_le_bytes());
             frame_data.extend_from_slice(&frame.palette_chunk_id.as_i16().to_le_bytes());
-            frame_data.extend_from_slice(&u16::from(transparent_colour_index).to_le_bytes());
+            frame_data.extend_from_slice(&u16::from(transparent_color_index).to_le_bytes());
             frame_data.extend_from_slice(&u16::try_from(frame.bounds_top).unwrap().to_le_bytes());
             frame_data.extend_from_slice(&u16::try_from(frame.bounds_left).unwrap().to_le_bytes());
 
@@ -424,7 +424,7 @@ impl Sprite {
 
                 let row_index = y * width;
 
-                if let Some(i) = pixels_p[row_index..].iter().position(|x| *x != transparent_colour_index) {
+                if let Some(i) = pixels_p[row_index..].iter().position(|x| *x != transparent_color_index) {
                     let transparent_row_count = i / width;
                     if transparent_row_count >= 1 {
                         let row_command_length = u16::try_from(transparent_row_count).unwrap();
@@ -441,11 +441,11 @@ impl Sprite {
                     let color_pixel = pixels_p[row_index + x];
                     let alpha_pixel = pixels_a[row_index + x] >> 3;
 
-                    if color_pixel == transparent_colour_index {
+                    if color_pixel == transparent_color_index {
                         let mut transparent_width = 1;
                         while x + transparent_width < width {
                             let color_pixel = pixels_p[row_index + x + transparent_width];
-                            if color_pixel == transparent_colour_index {
+                            if color_pixel == transparent_color_index {
                                 transparent_width += 1;
                             } else {
                                 break;
@@ -463,7 +463,7 @@ impl Sprite {
                             let color_pixel = pixels_p[row_index + x + translucent_color_width];
                             let alpha_pixel = pixels_a[row_index + x + translucent_color_width] >> 3;
 
-                            if color_pixel != transparent_colour_index && alpha_pixel != 31 {
+                            if color_pixel != transparent_color_index && alpha_pixel != 31 {
                                 translucent_color_width += 1;
                             } else {
                                 break;
@@ -491,7 +491,7 @@ impl Sprite {
                             let color_pixel = pixels_p[row_index + x + color_width];
                             let alpha_pixel = pixels_a[row_index + x + color_width] >> 3;
 
-                            if color_pixel != transparent_colour_index && alpha_pixel == 31 {
+                            if color_pixel != transparent_color_index && alpha_pixel == 31 {
                                 color_width += 1;
                             } else {
                                 break;

@@ -109,7 +109,7 @@ pub fn rebuild_iff_file(
     }
 
     // create PALT chunks
-    let (palt_transparent_colour_indexes, palt_chunks) =
+    let (palt_transparent_color_indexes, palt_chunks) =
         palt::create_palt_chunks(source_directory, &iff_description.sprites.sprites);
     new_chunks.extend(palt_chunks);
 
@@ -117,7 +117,7 @@ pub fn rebuild_iff_file(
     for sprite in &iff_description.sprites.sprites {
         new_chunks.push(sprite.to_chunk_bytes(
             source_directory,
-            palt_transparent_colour_indexes[&sprite.palette_chunk_id],
+            palt_transparent_color_indexes[&sprite.palette_chunk_id],
         ));
     }
 
