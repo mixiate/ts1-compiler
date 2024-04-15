@@ -18,15 +18,19 @@ pub struct SpriteDescription {
     pub offsets: SpriteOffsets,
 }
 
-pub fn get_sprite_description_file_path(alpha_sprite_file_path: &std::path::Path) -> std::path::PathBuf {
-    let alpha_sprite_file_path = alpha_sprite_file_path.to_str().unwrap();
-    let alpha_sprite_file_path = alpha_sprite_file_path.strip_suffix("_a.bmp").unwrap();
-    let alpha_sprite_file_path = alpha_sprite_file_path.to_owned() + " description.txt";
-    alpha_sprite_file_path.into()
+pub fn get_sprite_description_file_path(sprite_file_path: &std::path::Path) -> std::path::PathBuf {
+    let sprite_file_path = sprite_file_path.to_str().unwrap();
+
+    let sprite_file_path = sprite_file_path
+        .strip_suffix("_p.bmp")
+        .or_else(|| sprite_file_path.strip_suffix("_z.bmp").or_else(|| sprite_file_path.strip_suffix("_a.bmp")))
+        .unwrap();
+    let sprite_file_path = sprite_file_path.to_owned() + " description.txt";
+    sprite_file_path.into()
 }
 
-pub fn read_sprite_description_file(alpha_sprite_file_path: &std::path::Path) -> Option<SpriteDescription> {
-    let sprite_description_file_path = get_sprite_description_file_path(alpha_sprite_file_path);
+pub fn read_sprite_description_file(sprite_file_path: &std::path::Path) -> Option<SpriteDescription> {
+    let sprite_description_file_path = get_sprite_description_file_path(sprite_file_path);
     let sprite_description = std::fs::read_to_string(sprite_description_file_path).ok()?;
     let sprite_description: Vec<i32> = sprite_description.split(' ').map(|x| x.parse::<i32>().unwrap()).collect();
     #[allow(clippy::get_first)]
@@ -43,6 +47,24 @@ pub fn read_sprite_description_file(alpha_sprite_file_path: &std::path::Path) ->
             x_flipped: *sprite_description.get(6).unwrap(),
         },
     })
+}
+
+pub fn write_sprite_description_file(sprite_description: &SpriteDescription, sprite_file_path: &std::path::Path) {
+    let sprite_description_file_path = get_sprite_description_file_path(sprite_file_path);
+    std::fs::write(
+        sprite_description_file_path,
+        format!(
+            "{} {} {} {} {} {} {}",
+            sprite_description.bounds.left,
+            sprite_description.bounds.top,
+            sprite_description.bounds.right,
+            sprite_description.bounds.bottom,
+            sprite_description.offsets.x,
+            sprite_description.offsets.y,
+            sprite_description.offsets.x_flipped,
+        ),
+    )
+    .unwrap();
 }
 
 pub fn calculate_sprite_description(alpha_sprite: &image::GrayImage, zoom_level: dgrp::ZoomLevel) -> SpriteDescription {

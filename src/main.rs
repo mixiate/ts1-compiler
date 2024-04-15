@@ -4,6 +4,7 @@ mod iff;
 mod objd;
 mod palt;
 mod slot;
+mod splitter;
 mod spr;
 mod sprite;
 mod the_sims;
@@ -18,7 +19,13 @@ struct Cli {
 
 #[derive(clap::Subcommand)]
 enum CliCommands {
-    Compile { xml_file_path: std::path::PathBuf },
+    Split {
+        full_sprites_directory: std::path::PathBuf,
+        split_sprites_directory: std::path::PathBuf,
+    },
+    Compile {
+        xml_file_path: std::path::PathBuf,
+    },
 }
 
 fn main() {
@@ -26,6 +33,12 @@ fn main() {
     let cli = Cli::parse();
 
     match &cli.command {
+        CliCommands::Split {
+            full_sprites_directory,
+            split_sprites_directory,
+        } => {
+            splitter::split(full_sprites_directory, split_sprites_directory);
+        }
         CliCommands::Compile { xml_file_path } => {
             compiler::compile(xml_file_path);
         }
