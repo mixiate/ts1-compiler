@@ -451,6 +451,9 @@ impl Sprite {
                                 break;
                             }
                         }
+                        if x + transparent_width == width {
+                            break;
+                        }
 
                         let row_command_length = u16::try_from(transparent_width).unwrap();
                         let row_command = row_command(RowCommand::Transparent, row_command_length);
