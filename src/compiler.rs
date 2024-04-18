@@ -21,13 +21,14 @@ fn get_iff_file_name_hash(object_name: &str, variant_name: &str) -> String {
     format!("{abbreviated_file_name}{:X}", hasher.finish() as u32)
 }
 
-fn get_formatted_iff_file_path_or_rename_unhashed(
+fn get_formatted_iff_file_path_and_rename_unhashed_iff_file(
     the_sims_downloads_path: &std::path::Path,
     format_string: &str,
     creator_name: &str,
     object_name: &str,
     variant_name: Option<&str>,
-) -> std::path::PathBuf {
+) -> anyhow::Result<std::path::PathBuf> {
+    use anyhow::Context;
     use formatx::formatx;
 
     let variant_name = variant_name.unwrap_or("");
@@ -39,7 +40,7 @@ fn get_formatted_iff_file_path_or_rename_unhashed(
         object = object_name,
         variant = variant_name
     )
-    .unwrap();
+    .context("Failed to format iff file name")?;
     let iff_file_path = the_sims_downloads_path.join(iff_file_name).with_extension("iff");
     if !iff_file_path.is_file() {
         let unhashed_name = formatx!(
@@ -49,31 +50,60 @@ fn get_formatted_iff_file_path_or_rename_unhashed(
             object = object_name,
             variant = variant_name
         )
-        .unwrap();
+        .context("Failed to format iff file name")?;
         let unhashed_path = the_sims_downloads_path.join(unhashed_name).with_extension("iff");
-        std::fs::rename(unhashed_path, &iff_file_path).unwrap();
+        std::fs::rename(&unhashed_path, &iff_file_path).with_context(|| {
+            format!(
+                "Failed to rename {} to {}",
+                unhashed_path.display(),
+                iff_file_path.display()
+            )
+        })?;
     }
-    iff_file_path
+    Ok(iff_file_path)
 }
 
-fn save_xml_file(xml_file_path: &std::path::Path, iff_description: &iff_description::IffDescription) {
+fn read_xml_file(xml_file_path: &std::path::Path) -> anyhow::Result<iff_description::IffDescription> {
+    use anyhow::Context;
+
+    let iff_description = std::fs::read_to_string(xml_file_path)
+        .with_context(|| format!("Failed to read xml file {}", xml_file_path.display()))?;
+    quick_xml::de::from_str::<iff_description::IffDescription>(&iff_description)
+        .with_context(|| format!("Failed to deserialize xml file {}", xml_file_path.display()))
+}
+
+fn save_xml_file(
+    xml_file_path: &std::path::Path,
+    iff_description: &iff_description::IffDescription,
+) -> anyhow::Result<()> {
+    use anyhow::Context;
+
     let xml_header = include_str!("../res/header.xml");
 
     let mut buffer = xml_header.to_owned();
-    let mut ser = quick_xml::se::Serializer::with_root(&mut buffer, Some("objectsexportedfromthesims")).unwrap();
-    ser.indent(' ', 2);
+    let mut serializer = quick_xml::se::Serializer::with_root(&mut buffer, Some("objectsexportedfromthesims"))
+        .context("Failed to serialize xml file")?;
+    serializer.indent(' ', 2);
     use serde::Serialize;
-    iff_description.serialize(ser).unwrap();
+    iff_description.serialize(serializer).context("Failed to serialize xml file")?;
 
-    std::fs::write(xml_file_path, &buffer).unwrap();
+    std::fs::write(xml_file_path, &buffer)
+        .with_context(|| format!("Failed to write xml to {}", xml_file_path.display()))?;
+    Ok(())
 }
 
-pub fn compile(xml_file_path: &std::path::Path) {
-    let iff_description = std::fs::read_to_string(xml_file_path).unwrap();
-    let mut iff_description = quick_xml::de::from_str::<iff_description::IffDescription>(&iff_description).unwrap();
+pub fn compile(xml_file_path: &std::path::Path) -> anyhow::Result<()> {
+    use anyhow::Context;
+
+    let mut iff_description = read_xml_file(xml_file_path)?;
 
     let source_directory = std::path::PathBuf::from(&xml_file_path);
-    let source_directory = source_directory.parent().unwrap();
+    let source_directory = source_directory.parent().with_context(|| {
+        format!(
+            "Failed to get source directory from xml file path {}",
+            source_directory.display()
+        )
+    })?;
     iff_description.update_sprite_positions(source_directory);
 
     let the_sims_install_path = the_sims::install_path();
@@ -87,7 +117,9 @@ pub fn compile(xml_file_path: &std::path::Path) {
         &input_iff_file_path,
     );
 
-    save_xml_file(xml_file_path, &iff_description);
+    save_xml_file(xml_file_path, &iff_description)?;
+
+    Ok(())
 }
 
 pub fn compile_advanced(
@@ -96,10 +128,11 @@ pub fn compile_advanced(
     creator_name: &str,
     object_name: &str,
     variant_names: Option<(&str, &str)>,
-) {
+) -> anyhow::Result<()> {
     let xml_file_path = source_directory.join(object_name).with_extension("xml");
-    let iff_description = std::fs::read_to_string(&xml_file_path).unwrap();
-    let mut iff_description = quick_xml::de::from_str::<iff_description::IffDescription>(&iff_description).unwrap();
+
+    let mut iff_description = read_xml_file(&xml_file_path)?;
+
     if let Some((variant_original, variant_new)) = variant_names {
         iff_description.update_sprite_variants(variant_original, variant_new);
     }
@@ -107,20 +140,20 @@ pub fn compile_advanced(
 
     let (variant_original, variant_new) = variant_names.unzip();
     let the_sims_downloads_path = the_sims::install_path().join("downloads");
-    let input_iff_file_path = get_formatted_iff_file_path_or_rename_unhashed(
+    let input_iff_file_path = get_formatted_iff_file_path_and_rename_unhashed_iff_file(
         &the_sims_downloads_path,
         format_string,
         creator_name,
         object_name,
         variant_original,
-    );
-    let output_iff_file_path = get_formatted_iff_file_path_or_rename_unhashed(
+    )?;
+    let output_iff_file_path = get_formatted_iff_file_path_and_rename_unhashed_iff_file(
         &the_sims_downloads_path,
         format_string,
         creator_name,
         object_name,
         variant_new,
-    );
+    )?;
 
     iff::rebuild_iff_file(
         source_directory,
@@ -130,6 +163,7 @@ pub fn compile_advanced(
     );
 
     if variant_original == variant_new {
-        save_xml_file(&xml_file_path, &iff_description);
+        save_xml_file(&xml_file_path, &iff_description)?;
     }
+    Ok(())
 }

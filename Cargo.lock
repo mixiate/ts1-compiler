@@ -1204,6 +1204,7 @@ dependencies = [
 name = "ts1-compiler"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "clap 4.5.4",
  "formatx",
  "image 0.25.1",

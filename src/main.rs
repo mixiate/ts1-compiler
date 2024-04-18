@@ -41,7 +41,7 @@ enum CliCommands {
     },
 }
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     use clap::Parser;
     let cli = Cli::parse();
 
@@ -61,7 +61,7 @@ fn main() {
             );
         }
         CliCommands::Compile { xml_file_path } => {
-            compiler::compile(xml_file_path);
+            compiler::compile(xml_file_path)?;
         }
         CliCommands::CompileAdvanced {
             source_directory,
@@ -77,7 +77,8 @@ fn main() {
                 creator_name,
                 object_name,
                 variant_original.as_deref().zip(variant_new.as_deref()),
-            );
+            )?;
         }
     }
+    Ok(())
 }
