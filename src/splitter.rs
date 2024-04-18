@@ -1,6 +1,9 @@
 use crate::dgrp;
+use crate::error;
 use crate::quantizer;
 use crate::sprite;
+
+use anyhow::Context;
 
 fn rotation_names(rotation: dgrp::Rotation) -> (&'static str, &'static str) {
     match rotation {
@@ -35,7 +38,7 @@ fn split_sprite(
     quantizer: &imagequant::Attributes,
     quantization_result: &mut imagequant::QuantizationResult,
     palette: &[[u8; 3]],
-) {
+) -> anyhow::Result<()> {
     let extra_tiles = (object_dimensions.0 - 1) + (object_dimensions.1 - 1);
 
     let (tile_width, tile_height, size, split_sprite_width, split_sprite_height) = {
@@ -69,7 +72,9 @@ fn split_sprite(
     let full_sprite_z_extra_file_name = size.to_owned() + "_" + rotation_name + "_depth_extra.exr";
     let full_sprite_z_file_path = full_sprites_directory.join(frame_name).join(full_sprite_z_file_name);
     let full_sprite_z_extra_file_path = full_sprites_directory.join(frame_name).join(full_sprite_z_extra_file_name);
-    let mut full_sprite_z = image::open(full_sprite_z_file_path).unwrap().to_rgb32f();
+    let mut full_sprite_z = image::open(&full_sprite_z_file_path)
+        .with_context(|| error::file_read_error(&full_sprite_z_file_path))?
+        .to_rgb32f();
     let mut full_sprite_z_extra = image::open(full_sprite_z_extra_file_path).map(|x| x.to_rgb32f()).ok();
 
     let mut full_sprite_p = quantizer::dither_image(quantizer, quantization_result, full_sprite_p, full_sprite_a);
@@ -205,7 +210,9 @@ fn split_sprite(
             }
 
             if !split_sprite_frame_directory.is_dir() {
-                std::fs::create_dir_all(&split_sprite_frame_directory).unwrap();
+                std::fs::create_dir_all(&split_sprite_frame_directory).with_context(|| {
+                    format!("Failed to create directory {}", split_sprite_frame_directory.display())
+                })?;
             }
 
             {
@@ -221,17 +228,23 @@ fn split_sprite(
                     )
                     .unwrap();
 
-                let mut file = std::fs::File::create(&split_sprite_p_file_path).unwrap();
+                let mut file = std::fs::File::create(&split_sprite_p_file_path)
+                    .with_context(|| error::file_write_error(&split_sprite_p_file_path))?;
                 use std::io::Write;
-                file.write_all(&output_buffer).unwrap();
+                file.write_all(&output_buffer).with_context(|| error::file_write_error(&split_sprite_p_file_path))?;
             }
-            split_sprite_z.save(&split_sprite_z_file_path).unwrap();
-            split_sprite_a.save(&split_sprite_a_file_path).unwrap();
+            split_sprite_z
+                .save(&split_sprite_z_file_path)
+                .with_context(|| error::file_write_error(&split_sprite_z_file_path))?;
+            split_sprite_a
+                .save(&split_sprite_a_file_path)
+                .with_context(|| error::file_write_error(&split_sprite_a_file_path))?;
 
             let sprite_description = sprite::calculate_sprite_description(&split_sprite_a, zoom_level);
             sprite::write_sprite_description_file(&sprite_description, &split_sprite_p_file_path);
         }
     }
+    Ok(())
 }
 
 struct DepthPlanes {
@@ -325,9 +338,11 @@ pub fn split(
     split_sprites_directory: &std::path::Path,
     object_dimensions: (i32, i32),
     frame_names: &[String],
-) {
-    assert!(object_dimensions.0 > 0 && object_dimensions.0 <= 32);
-    assert!(object_dimensions.1 > 0 && object_dimensions.1 <= 32);
+) -> anyhow::Result<()> {
+    anyhow::ensure!(object_dimensions.0 > 0, "Object dimension x must be over 0");
+    anyhow::ensure!(object_dimensions.0 <= 32, "Object dimension x must be 32 or under");
+    anyhow::ensure!(object_dimensions.1 > 0, "Object dimension y must be over 0");
+    anyhow::ensure!(object_dimensions.1 <= 32, "Object dimension y must be 32 or under");
 
     let depth_planes = DepthPlanes {
         far_large: image::load_from_memory(include_bytes!("../res/depth plane far large.exr")).unwrap().to_rgb32f(),
@@ -359,14 +374,18 @@ pub fn split(
             if !color_sprite_file_path.is_file() {
                 continue;
             }
-            let color_sprite = image::open(color_sprite_file_path).unwrap().to_rgb8();
+            let color_sprite = image::open(&color_sprite_file_path)
+                .with_context(|| error::file_read_error(&color_sprite_file_path))?
+                .to_rgb8();
 
             let alpha_sprite_file_name = rotation_name.to_owned() + "_alpha.exr";
             let alpha_sprite_file_path = full_sprite_frame_directory.join(alpha_sprite_file_name);
             let alpha_sprite = {
-                let mut image_reader = image::io::Reader::open(alpha_sprite_file_path).unwrap();
+                let mut image_reader = image::io::Reader::open(&alpha_sprite_file_path)
+                    .with_context(|| error::file_read_error(&alpha_sprite_file_path))?;
                 image_reader.no_limits();
-                let mut alpha_sprite = image_reader.decode().unwrap().to_rgb32f();
+                let mut alpha_sprite =
+                    image_reader.decode().with_context(|| error::file_read_error(&alpha_sprite_file_path))?.to_rgb32f();
                 for pixel in alpha_sprite.pixels_mut() {
                     for channel in pixel.0.iter_mut() {
                         *channel = (*channel * 32.0).round() / 32.0
@@ -388,6 +407,14 @@ pub fn split(
         }
     }
 
+    anyhow::ensure!(
+        !color_set.is_empty(),
+        format!(
+            "Failed to find any sprites in directory {}",
+            full_sprites_directory.display()
+        )
+    );
+
     let mut quantizer = imagequant::new();
     quantizer.set_speed(1).unwrap();
     let (mut quantization_result, palette) = quantizer::create_color_palette(&color_set, &quantizer);
@@ -407,7 +434,7 @@ pub fn split(
             &quantizer,
             &mut quantization_result,
             &palette,
-        );
+        )?;
 
         let color_sprite = downsize_color_sprite(&color_sprite, &alpha_sprite);
         let alpha_sprite = downsize_alpha_sprite(&alpha_sprite);
@@ -426,7 +453,7 @@ pub fn split(
             &quantizer,
             &mut quantization_result,
             &palette,
-        );
+        )?;
 
         let color_sprite = downsize_color_sprite(&color_sprite, &alpha_sprite);
         let alpha_sprite = downsize_alpha_sprite(&alpha_sprite);
@@ -445,6 +472,7 @@ pub fn split(
             &quantizer,
             &mut quantization_result,
             &palette,
-        );
+        )?;
     }
+    Ok(())
 }

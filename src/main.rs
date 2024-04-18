@@ -1,5 +1,6 @@
 mod compiler;
 mod dgrp;
+mod error;
 mod iff;
 mod iff_description;
 mod objd;
@@ -58,7 +59,7 @@ fn main() -> anyhow::Result<()> {
                 split_sprites_directory,
                 (*object_dimension_x, *object_dimension_y),
                 frame_names,
-            );
+            )?;
         }
         CliCommands::Compile { xml_file_path } => {
             compiler::compile(xml_file_path)?;
