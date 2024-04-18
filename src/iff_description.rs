@@ -88,6 +88,21 @@ pub struct Sprites {
 }
 
 impl IffDescription {
+    pub fn update_sprite_variants(&mut self, variant_original: &str, variant_new: &str) {
+        let variant_original = " - ".to_owned() + variant_original + " - Sprites";
+        let variant_new = " - ".to_owned() + variant_new + " - Sprites";
+
+        for sprite in &mut self.sprites.sprites {
+            if sprite.sprite_type == spr::SpriteType::Spr1 {
+                continue;
+            }
+            for frame in &mut sprite.sprite_frames {
+                let sprite_file_path = frame.sprite_channel_file_path_relative_mut(spr::SpriteChannelType::Color);
+                *sprite_file_path = sprite_file_path.replacen(&variant_original, &variant_new, 1);
+            }
+        }
+    }
+
     pub fn update_sprite_positions(&mut self, source_directory: &std::path::Path) {
         for sprite in &mut self.sprites.sprites {
             if sprite.sprite_type == spr::SpriteType::Spr1 {

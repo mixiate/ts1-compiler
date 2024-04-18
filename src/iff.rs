@@ -76,6 +76,23 @@ impl ChunkHeader {
     }
 }
 
+fn get_guids_from_iff_file_bytes(iff_file_bytes: &[u8]) -> std::collections::HashMap<ChunkId, i32> {
+    let mut guids = std::collections::HashMap::new();
+    let mut i = IFF_FILE_HEADER_SIZE;
+    while i < iff_file_bytes.len() {
+        let chunk_header = ChunkHeader::from_bytes(&iff_file_bytes[i..i + IFF_CHUNK_HEADER_SIZE].try_into().unwrap());
+        let chunk_type = std::str::from_utf8(&chunk_header.chunk_type).unwrap();
+        if chunk_type == "OBJD" {
+            const GUID_ADDRESS_OFFSET: usize = 28;
+            let guid_address = i + IFF_CHUNK_HEADER_SIZE + GUID_ADDRESS_OFFSET;
+            let guid = i32::from_le_bytes(iff_file_bytes[guid_address..guid_address + 4].try_into().unwrap());
+            guids.entry(chunk_header.id).or_insert(guid);
+        }
+        i += usize::try_from(chunk_header.size).unwrap();
+    }
+    guids
+}
+
 pub fn rebuild_iff_file(
     source_directory: &std::path::Path,
     iff_description: &iff_description::IffDescription,
@@ -84,12 +101,23 @@ pub fn rebuild_iff_file(
 ) {
     let input_iff_file_bytes = std::fs::read(input_iff_file_path).unwrap();
 
+    let (input_guids, output_guids) = {
+        let output_iff_file_bytes = std::fs::read(output_iff_file_path).unwrap();
+        (
+            get_guids_from_iff_file_bytes(&input_iff_file_bytes),
+            get_guids_from_iff_file_bytes(&output_iff_file_bytes),
+        )
+    };
+
     let mut new_chunks = std::vec::Vec::new();
 
     // create OBJD chunks
     for object_definition in &iff_description.object_definitions.object_definitions {
         let mut objd_chunk = std::vec::Vec::new();
-        object_definition.write(&mut objd_chunk);
+        object_definition.write(
+            &mut objd_chunk,
+            Some(*output_guids.get(&object_definition.chunk_id).unwrap()),
+        );
         assert!(objd_chunk.len() == IFF_CHUNK_HEADER_SIZE + objd::OBJD_CHUNK_DATA_SIZE);
         new_chunks.push(objd_chunk);
     }
@@ -205,6 +233,38 @@ pub fn rebuild_iff_file(
         let rsmp_address = u32::try_from(output_iff_file_bytes.len()).unwrap();
         output_iff_file_bytes.extend_from_slice(rsmp_chunk.as_slice());
         output_iff_file_bytes[60..64].copy_from_slice(&rsmp_address.to_be_bytes());
+    }
+
+    // replace the guids in the BHAV code of the output iff
+    {
+        let mut i = IFF_FILE_HEADER_SIZE;
+        while i < output_iff_file_bytes.len() {
+            let chunk_header =
+                ChunkHeader::from_bytes(&output_iff_file_bytes[i..i + IFF_CHUNK_HEADER_SIZE].try_into().unwrap());
+            let chunk_size = usize::try_from(chunk_header.size).unwrap();
+            let chunk_type = std::str::from_utf8(&chunk_header.chunk_type).unwrap();
+            if chunk_type == "BHAV" {
+                const INSTRUCTION_SIZE: usize = 12;
+                const PARAMETER_OFFSET: usize = 4;
+                assert!((chunk_size - IFF_CHUNK_HEADER_SIZE) % INSTRUCTION_SIZE == 0);
+                let instruction_count = (chunk_size - IFF_CHUNK_HEADER_SIZE) / INSTRUCTION_SIZE;
+                for j in 0..instruction_count {
+                    let instruction_address = i + IFF_CHUNK_HEADER_SIZE + (j * INSTRUCTION_SIZE);
+                    let guid_address = instruction_address + PARAMETER_OFFSET;
+                    if matches!(output_iff_file_bytes[instruction_address], 31 | 32 | 42) {
+                        let guid = i32::from_le_bytes(
+                            output_iff_file_bytes[guid_address..guid_address + 4].try_into().unwrap(),
+                        );
+                        if let Some((objd_id, _)) = input_guids.iter().find(|(_, main_guid)| **main_guid == guid) {
+                            let output_guid = output_guids.get(objd_id).unwrap();
+                            output_iff_file_bytes[guid_address..guid_address + 4]
+                                .copy_from_slice(&output_guid.to_le_bytes());
+                        }
+                    }
+                }
+            }
+            i += chunk_size;
+        }
     }
 
     std::fs::write(output_iff_file_path, &output_iff_file_bytes).unwrap();

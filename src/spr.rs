@@ -73,6 +73,10 @@ impl SpriteFrame {
     pub fn sprite_channel_file_path_relative(&self, channel_type: SpriteChannelType) -> &str {
         &self.sprite_channels.iter().find(|x| x.channel_type == channel_type).unwrap().file_path_relative
     }
+
+    pub fn sprite_channel_file_path_relative_mut(&mut self, channel_type: SpriteChannelType) -> &mut String {
+        &mut self.sprite_channels.iter_mut().find(|x| x.channel_type == channel_type).unwrap().file_path_relative
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, serde::Deserialize, serde::Serialize)]

@@ -377,6 +377,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "formatx"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "db0f0c49aba98a3b2578315766960bd242885ff672fd62610c5557cd6c6efe03"
+
+[[package]]
 name = "getrandom"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1199,6 +1205,7 @@ name = "ts1-compiler"
 version = "0.1.0"
 dependencies = [
  "clap 4.5.4",
+ "formatx",
  "image 0.25.1",
  "imagequant",
  "kmeans_colors",

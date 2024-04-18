@@ -30,6 +30,15 @@ enum CliCommands {
     Compile {
         xml_file_path: std::path::PathBuf,
     },
+    CompileAdvanced {
+        source_directory: std::path::PathBuf,
+        format_string: String,
+        creator_name: String,
+        object_name: String,
+        #[arg(requires_all=["variant_new"])]
+        variant_original: Option<String>,
+        variant_new: Option<String>,
+    },
 }
 
 fn main() {
@@ -53,6 +62,22 @@ fn main() {
         }
         CliCommands::Compile { xml_file_path } => {
             compiler::compile(xml_file_path);
+        }
+        CliCommands::CompileAdvanced {
+            source_directory,
+            format_string,
+            creator_name,
+            object_name,
+            variant_original,
+            variant_new,
+        } => {
+            compiler::compile_advanced(
+                source_directory,
+                format_string,
+                creator_name,
+                object_name,
+                variant_original.as_deref().zip(variant_new.as_deref()),
+            );
         }
     }
 }

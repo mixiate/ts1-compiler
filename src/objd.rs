@@ -218,7 +218,7 @@ pub struct ObjectDefinition {
 }
 
 impl ObjectDefinition {
-    pub fn write(&self, mut writer: impl std::io::Write) {
+    pub fn write(&self, mut writer: impl std::io::Write, replacement_guid: Option<i32>) {
         let objd_chunk_header = iff::ChunkHeader::new("OBJD", OBJD_CHUNK_DATA_SIZE, self.chunk_id, &self.chunk_label);
         objd_chunk_header.write(&mut writer);
 
@@ -235,7 +235,7 @@ impl ObjectDefinition {
         writer.write_all(&self.subindex.to_le_bytes()).unwrap();
         writer.write_all(&self.washhandstreeid.to_le_bytes()).unwrap();
         writer.write_all(&self.animtableid.to_le_bytes()).unwrap();
-        writer.write_all(&self.guid.to_le_bytes()).unwrap();
+        writer.write_all(&replacement_guid.unwrap_or(self.guid).to_le_bytes()).unwrap();
         writer.write_all(&self.disabled.to_le_bytes()).unwrap();
         writer.write_all(&self.portaltreeid.to_le_bytes()).unwrap();
         writer.write_all(&self.price.to_le_bytes()).unwrap();
