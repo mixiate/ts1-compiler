@@ -1,16 +1,6 @@
 use crate::dgrp;
+use crate::quantizer;
 use crate::sprite;
-
-fn read_object_description_file(full_sprites_directory: &std::path::Path) -> (i32, i32) {
-    let object_description =
-        std::fs::read_to_string(full_sprites_directory.join("The Sims Object Description.txt")).unwrap();
-    let object_description: Vec<_> = object_description.split(' ').collect();
-    let object_dimensions_x: i32 = object_description[0].parse().unwrap();
-    let object_dimensions_y: i32 = object_description[1].parse().unwrap();
-    assert!(object_dimensions_x > 0 && object_dimensions_x <= 32);
-    assert!(object_dimensions_y > 0 && object_dimensions_y <= 32);
-    (object_dimensions_x, object_dimensions_y)
-}
 
 fn rotation_names(rotation: dgrp::Rotation) -> (&'static str, &'static str) {
     match rotation {
@@ -34,14 +24,17 @@ fn format_split_sprite_frame_name(object_dimensions: (i32, i32), frame_name: &st
 fn split_sprite(
     full_sprites_directory: &std::path::Path,
     split_sprites_directory: &std::path::Path,
-    frame_name: &str,
     object_dimensions: (i32, i32),
+    frame_name: &str,
     rotation: dgrp::Rotation,
     zoom_level: dgrp::ZoomLevel,
     full_sprite_p: &image::RgbImage,
     full_sprite_a: &image::Rgb32FImage,
     depth_plane_far: &image::Rgb32FImage,
     depth_plane_near: &image::Rgb32FImage,
+    quantizer: &imagequant::Attributes,
+    quantization_result: &mut imagequant::QuantizationResult,
+    palette: &[[u8; 3]],
 ) {
     let extra_tiles = (object_dimensions.0 - 1) + (object_dimensions.1 - 1);
 
@@ -79,7 +72,7 @@ fn split_sprite(
     let mut full_sprite_z = image::open(full_sprite_z_file_path).unwrap().to_rgb32f();
     let mut full_sprite_z_extra = image::open(full_sprite_z_extra_file_path).map(|x| x.to_rgb32f()).ok();
 
-    let mut full_sprite_p = full_sprite_p.clone();
+    let mut full_sprite_p = quantizer::dither_image(quantizer, quantization_result, full_sprite_p, full_sprite_a);
     let mut full_sprite_a = full_sprite_a.clone();
 
     for y in 0..object_dimensions.1 {
@@ -154,7 +147,7 @@ fn split_sprite(
 
             let split_sprite_width = u32::try_from(split_sprite_width).unwrap();
             let split_sprite_height = u32::try_from(split_sprite_height).unwrap();
-            let mut split_sprite_p = image::RgbImage::new(split_sprite_width, split_sprite_height);
+            let mut split_sprite_p = image::GrayImage::new(split_sprite_width, split_sprite_height);
             let mut split_sprite_z = image::GrayImage::new(split_sprite_width, split_sprite_height);
             let mut split_sprite_a = image::GrayImage::new(split_sprite_width, split_sprite_height);
 
@@ -198,14 +191,14 @@ fn split_sprite(
                         let depth_u8 = 255 - (depth_normalized.clamp(0.0, 1.0) * 255.0) as u8;
                         split_sprite_z.put_pixel(split_x, split_y, image::Luma([depth_u8]));
 
-                        full_sprite_p.put_pixel(full_x, full_y, image::Rgb([255, 255, 0]));
+                        full_sprite_p.put_pixel(full_x, full_y, image::Luma([0]));
                         full_sprite_z.put_pixel(full_x, full_y, image::Rgb([1.0, 1.0, 1.0]));
                         if let Some(ref mut full_sprite_z_extra) = full_sprite_z_extra {
                             full_sprite_z_extra.put_pixel(full_x, full_y, image::Rgb([1.0, 1.0, 1.0]));
                         }
                         full_sprite_a.put_pixel(full_x, full_y, image::Rgb([0.0, 0.0, 0.0]));
                     } else {
-                        split_sprite_p.put_pixel(split_x, split_y, image::Rgb([255, 255, 0]));
+                        split_sprite_p.put_pixel(split_x, split_y, image::Luma([0]));
                         split_sprite_z.put_pixel(split_x, split_y, image::Luma([255]));
                     }
                 }
@@ -215,7 +208,23 @@ fn split_sprite(
                 std::fs::create_dir_all(&split_sprite_frame_directory).unwrap();
             }
 
-            split_sprite_p.save(&split_sprite_p_file_path).unwrap();
+            {
+                let mut output_buffer = Vec::new();
+                let mut encoder = image::codecs::bmp::BmpEncoder::new(&mut output_buffer);
+                encoder
+                    .encode_with_palette(
+                        split_sprite_p.as_raw(),
+                        split_sprite_p.width(),
+                        split_sprite_p.height(),
+                        image::ExtendedColorType::L8,
+                        Some(palette),
+                    )
+                    .unwrap();
+
+                let mut file = std::fs::File::create(&split_sprite_p_file_path).unwrap();
+                use std::io::Write;
+                file.write_all(&output_buffer).unwrap();
+            }
             split_sprite_z.save(&split_sprite_z_file_path).unwrap();
             split_sprite_a.save(&split_sprite_a_file_path).unwrap();
 
@@ -311,75 +320,93 @@ fn downsize_alpha_sprite(alpha: &image::Rgb32FImage) -> image::Rgb32FImage {
     downsized_alpha
 }
 
-fn split_frame(
+pub fn split(
     full_sprites_directory: &std::path::Path,
     split_sprites_directory: &std::path::Path,
-    frame_name: &str,
     object_dimensions: (i32, i32),
-    depth_planes: &DepthPlanes,
+    frame_names: &[String],
 ) {
-    let rotations = [
-        dgrp::Rotation::NorthWest,
-        dgrp::Rotation::NorthEast,
-        dgrp::Rotation::SouthEast,
-        dgrp::Rotation::SouthWest,
-    ];
-    for rotation in rotations {
-        let (rotation_name, transmogrified_rotation_name) = rotation_names(rotation);
+    assert!(object_dimensions.0 > 0 && object_dimensions.0 <= 32);
+    assert!(object_dimensions.1 > 0 && object_dimensions.1 <= 32);
 
-        let full_sprite_frame_directory = full_sprites_directory.join(frame_name);
+    let depth_planes = DepthPlanes {
+        far_large: image::load_from_memory(include_bytes!("../res/depth plane far large.exr")).unwrap().to_rgb32f(),
+        far_medium: image::load_from_memory(include_bytes!("../res/depth plane far medium.exr")).unwrap().to_rgb32f(),
+        far_small: image::load_from_memory(include_bytes!("../res/depth plane far small.exr")).unwrap().to_rgb32f(),
+        near_large: image::load_from_memory(include_bytes!("../res/depth plane near large.exr")).unwrap().to_rgb32f(),
+        near_medium: image::load_from_memory(include_bytes!("../res/depth plane near medium.exr")).unwrap().to_rgb32f(),
+        near_small: image::load_from_memory(include_bytes!("../res/depth plane near small.exr")).unwrap().to_rgb32f(),
+    };
 
-        let color_sprite_file_name = rotation_name.to_owned() + "_color.png";
-        let color_sprite_file_path = full_sprite_frame_directory.join(color_sprite_file_name);
-        if !color_sprite_file_path.is_file() {
-            continue;
-        }
+    let mut sprites = Vec::new();
 
-        {
-            let split_sprite_frame_name = format_split_sprite_frame_name(object_dimensions, frame_name, 0, 0);
-            let split_sprite_frame_directory = split_sprites_directory.join(split_sprite_frame_name);
-            let split_color_sprite_file_name = "large_".to_owned() + transmogrified_rotation_name + "_p.bmp";
-            let split_color_sprite_file_path = split_sprite_frame_directory.join(split_color_sprite_file_name);
+    let mut color_set = std::collections::HashSet::new();
 
-            if split_color_sprite_file_path.is_file() {
-                let full_sprite_modified_time = color_sprite_file_path.metadata().unwrap().modified().unwrap();
-                let split_sprite_modified_time = split_color_sprite_file_path.metadata().unwrap().modified().unwrap();
-                if split_sprite_modified_time > full_sprite_modified_time {
-                    continue;
+    for frame_name in frame_names {
+        let rotations = [
+            dgrp::Rotation::NorthWest,
+            dgrp::Rotation::NorthEast,
+            dgrp::Rotation::SouthEast,
+            dgrp::Rotation::SouthWest,
+        ];
+        for rotation in rotations {
+            let (rotation_name, _) = rotation_names(rotation);
+
+            let full_sprite_frame_directory = full_sprites_directory.join(frame_name);
+
+            let color_sprite_file_name = rotation_name.to_owned() + "_color.png";
+            let color_sprite_file_path = full_sprite_frame_directory.join(color_sprite_file_name);
+            if !color_sprite_file_path.is_file() {
+                continue;
+            }
+            let color_sprite = image::open(color_sprite_file_path).unwrap().to_rgb8();
+
+            let alpha_sprite_file_name = rotation_name.to_owned() + "_alpha.exr";
+            let alpha_sprite_file_path = full_sprite_frame_directory.join(alpha_sprite_file_name);
+            let alpha_sprite = {
+                let mut image_reader = image::io::Reader::open(alpha_sprite_file_path).unwrap();
+                image_reader.no_limits();
+                let mut alpha_sprite = image_reader.decode().unwrap().to_rgb32f();
+                for pixel in alpha_sprite.pixels_mut() {
+                    for channel in pixel.0.iter_mut() {
+                        *channel = (*channel * 32.0).round() / 32.0
+                    }
+                }
+                alpha_sprite
+            };
+
+            let color_sprite = downsize_color_sprite(&color_sprite, &alpha_sprite);
+            let alpha_sprite = downsize_alpha_sprite(&alpha_sprite);
+
+            for (rgb, a) in color_sprite.pixels().zip(alpha_sprite.pixels()) {
+                if a[0] > 0.0 {
+                    color_set.insert(*rgb);
                 }
             }
+
+            sprites.push((frame_name, rotation, color_sprite, alpha_sprite));
         }
+    }
 
-        let color_sprite = image::open(color_sprite_file_path).unwrap().to_rgb8();
+    let mut quantizer = imagequant::new();
+    quantizer.set_speed(1).unwrap();
+    let (mut quantization_result, palette) = quantizer::create_color_palette(&color_set, &quantizer);
 
-        let alpha_sprite_file_name = rotation_name.to_owned() + "_alpha.exr";
-        let alpha_sprite_file_path = full_sprite_frame_directory.join(alpha_sprite_file_name);
-        let alpha_sprite = {
-            let mut image_reader = image::io::Reader::open(alpha_sprite_file_path).unwrap();
-            image_reader.no_limits();
-            let mut alpha_sprite = image_reader.decode().unwrap().to_rgb32f();
-            for pixel in alpha_sprite.pixels_mut() {
-                for channel in pixel.0.iter_mut() {
-                    *channel = (*channel * 32.0).round() / 32.0
-                }
-            }
-            alpha_sprite
-        };
-
-        let color_sprite = downsize_color_sprite(&color_sprite, &alpha_sprite);
-        let alpha_sprite = downsize_alpha_sprite(&alpha_sprite);
-
+    for (frame_name, rotation, color_sprite, alpha_sprite) in sprites {
         split_sprite(
             full_sprites_directory,
             split_sprites_directory,
-            frame_name,
             object_dimensions,
+            frame_name,
             rotation,
             dgrp::ZoomLevel::Zero,
             &color_sprite,
             &alpha_sprite,
             &depth_planes.far_large,
             &depth_planes.near_large,
+            &quantizer,
+            &mut quantization_result,
+            &palette,
         );
 
         let color_sprite = downsize_color_sprite(&color_sprite, &alpha_sprite);
@@ -388,14 +415,17 @@ fn split_frame(
         split_sprite(
             full_sprites_directory,
             split_sprites_directory,
-            frame_name,
             object_dimensions,
+            frame_name,
             rotation,
             dgrp::ZoomLevel::One,
             &color_sprite,
             &alpha_sprite,
             &depth_planes.far_medium,
             &depth_planes.near_medium,
+            &quantizer,
+            &mut quantization_result,
+            &palette,
         );
 
         let color_sprite = downsize_color_sprite(&color_sprite, &alpha_sprite);
@@ -404,47 +434,17 @@ fn split_frame(
         split_sprite(
             full_sprites_directory,
             split_sprites_directory,
-            frame_name,
             object_dimensions,
+            frame_name,
             rotation,
             dgrp::ZoomLevel::Two,
             &color_sprite,
             &alpha_sprite,
             &depth_planes.far_small,
             &depth_planes.near_small,
+            &quantizer,
+            &mut quantization_result,
+            &palette,
         );
-    }
-}
-
-pub fn split(full_sprites_directory: &std::path::Path, split_sprites_directory: &std::path::Path) {
-    static DEPTH_PLANE_FAR_LARGE: &[u8] = include_bytes!("../res/depth plane far large.exr");
-    static DEPTH_PLANE_FAR_MEDIUM: &[u8] = include_bytes!("../res/depth plane far medium.exr");
-    static DEPTH_PLANE_FAR_SMALL: &[u8] = include_bytes!("../res/depth plane far small.exr");
-    static DEPTH_PLANE_NEAR_LARGE: &[u8] = include_bytes!("../res/depth plane near large.exr");
-    static DEPTH_PLANE_NEAR_MEDIUM: &[u8] = include_bytes!("../res/depth plane near medium.exr");
-    static DEPTH_PLANE_NEAR_SMALL: &[u8] = include_bytes!("../res/depth plane near small.exr");
-    let depth_planes = DepthPlanes {
-        far_large: image::load_from_memory(DEPTH_PLANE_FAR_LARGE).unwrap().to_rgb32f(),
-        far_medium: image::load_from_memory(DEPTH_PLANE_FAR_MEDIUM).unwrap().to_rgb32f(),
-        far_small: image::load_from_memory(DEPTH_PLANE_FAR_SMALL).unwrap().to_rgb32f(),
-        near_large: image::load_from_memory(DEPTH_PLANE_NEAR_LARGE).unwrap().to_rgb32f(),
-        near_medium: image::load_from_memory(DEPTH_PLANE_NEAR_MEDIUM).unwrap().to_rgb32f(),
-        near_small: image::load_from_memory(DEPTH_PLANE_NEAR_SMALL).unwrap().to_rgb32f(),
-    };
-
-    let object_dimensions = read_object_description_file(full_sprites_directory);
-
-    for entry in std::fs::read_dir(full_sprites_directory).unwrap() {
-        let entry = entry.unwrap();
-        if entry.path().is_dir() {
-            let frame_name = entry.path().file_name().unwrap().to_owned().into_string().unwrap();
-            split_frame(
-                full_sprites_directory,
-                split_sprites_directory,
-                &frame_name,
-                object_dimensions,
-                &depth_planes,
-            );
-        }
     }
 }

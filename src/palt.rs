@@ -1,10 +1,11 @@
 use crate::iff;
 use crate::spr;
 
+pub const PALT_COLOR_ENTRY_COUNT: u32 = 256;
+
 fn create_palt_chunk(palette_id: iff::ChunkId, sprite_path: &std::path::Path) -> (u8, Vec<u8>) {
     const PALT_CHUNK_DATA_SIZE: usize = 784;
     const PALT_VERSION: u32 = 1;
-    const PALT_COLOR_ENTRY_COUNT: u32 = 256;
 
     let palt_chunk_header = iff::ChunkHeader::new("PALT", PALT_CHUNK_DATA_SIZE, palette_id, "");
 
