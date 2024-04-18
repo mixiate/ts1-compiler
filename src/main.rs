@@ -1,6 +1,7 @@
 mod compiler;
 mod dgrp;
 mod iff;
+mod iff_description;
 mod objd;
 mod palt;
 mod quantizer;
@@ -9,7 +10,6 @@ mod splitter;
 mod spr;
 mod sprite;
 mod the_sims;
-mod xml;
 
 #[derive(clap::Parser)]
 #[command(version, about, long_about = None)]

@@ -1,6 +1,6 @@
+use crate::iff_description;
 use crate::objd;
 use crate::palt;
-use crate::xml;
 
 pub const IFF_FILE_HEADER_SIZE: usize = 64;
 pub const IFF_CHUNK_HEADER_SIZE: usize = 76;
@@ -78,7 +78,7 @@ impl ChunkHeader {
 
 pub fn rebuild_iff_file(
     source_directory: &std::path::Path,
-    iff_description: &xml::IffDescription,
+    iff_description: &iff_description::IffDescription,
     input_iff_file_path: &std::path::Path,
     output_iff_file_path: &std::path::Path,
 ) {

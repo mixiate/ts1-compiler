@@ -1,11 +1,10 @@
 use crate::iff;
+use crate::iff_description;
 use crate::the_sims;
-use crate::xml;
 
 pub fn compile(xml_file_path: &std::path::Path) {
-    let xml = std::fs::read_to_string(xml_file_path).unwrap();
-
-    let mut iff_description = quick_xml::de::from_str::<xml::IffDescription>(&xml).unwrap();
+    let iff_description = std::fs::read_to_string(xml_file_path).unwrap();
+    let mut iff_description = quick_xml::de::from_str::<iff_description::IffDescription>(&iff_description).unwrap();
 
     let source_directory = std::path::PathBuf::from(&xml_file_path);
     let source_directory = source_directory.parent().unwrap();
