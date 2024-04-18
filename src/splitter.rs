@@ -256,23 +256,18 @@ fn downsize_color_sprite(color: &image::RgbImage, alpha: &image::Rgb32FImage) ->
     let mut pixels = Vec::with_capacity(4);
     for y in 0..downsized_color.height() {
         for x in 0..downsized_color.width() {
-            let index_x = x * 2;
-            let index_y = y * 2;
-            if alpha.get_pixel(index_x, index_y)[0] > 0.0 {
-                pixels.push(color.get_pixel(index_x, index_y));
-            }
-            let index_x = index_x + 1;
-            if alpha.get_pixel(index_x, index_y)[0] > 0.0 {
-                pixels.push(color.get_pixel(index_x, index_y));
-            }
-            let index_x = index_x - 1;
-            let index_y = index_y + 1;
-            if alpha.get_pixel(index_x, index_y)[0] > 0.0 {
-                pixels.push(color.get_pixel(index_x, index_y));
-            }
-            let index_x = index_x + 1;
-            if alpha.get_pixel(index_x, index_y)[0] > 0.0 {
-                pixels.push(color.get_pixel(index_x, index_y));
+            let original_x = x * 2;
+            let original_y = y * 2;
+            let indices = [
+                (original_x, original_y),
+                (original_x + 1, original_y),
+                (original_x, original_y + 1),
+                (original_x + 1, original_y + 1),
+            ];
+            for (x, y) in indices {
+                if alpha.get_pixel(x, y)[0] > 0.0 {
+                    pixels.push(color.get_pixel(x, y));
+                }
             }
             let red = linear_to_srgb(
                 pixels.iter().fold(0.0, |a, x| a + srgb_to_linear(x[0])) / std::cmp::max(pixels.len(), 1) as f32,
@@ -295,23 +290,18 @@ fn downsize_alpha_sprite(alpha: &image::Rgb32FImage) -> image::Rgb32FImage {
     let mut pixels = Vec::with_capacity(4);
     for y in 0..downsized_alpha.height() {
         for x in 0..downsized_alpha.width() {
-            let index_x = x * 2;
-            let index_y = y * 2;
-            if alpha.get_pixel(index_x, index_y)[0] > 0.0 {
-                pixels.push(alpha.get_pixel(index_x, index_y)[0]);
-            }
-            let index_x = index_x + 1;
-            if alpha.get_pixel(index_x, index_y)[0] > 0.0 {
-                pixels.push(alpha.get_pixel(index_x, index_y)[0]);
-            }
-            let index_x = index_x - 1;
-            let index_y = index_y + 1;
-            if alpha.get_pixel(index_x, index_y)[0] > 0.0 {
-                pixels.push(alpha.get_pixel(index_x, index_y)[0]);
-            }
-            let index_x = index_x + 1;
-            if alpha.get_pixel(index_x, index_y)[0] > 0.0 {
-                pixels.push(alpha.get_pixel(index_x, index_y)[0]);
+            let original_x = x * 2;
+            let original_y = y * 2;
+            let indices = [
+                (original_x, original_y),
+                (original_x + 1, original_y),
+                (original_x, original_y + 1),
+                (original_x + 1, original_y + 1),
+            ];
+            for (x, y) in indices {
+                if alpha.get_pixel(x, y)[0] > 0.0 {
+                    pixels.push(alpha.get_pixel(x, y)[0]);
+                }
             }
             let average = pixels.iter().sum::<f32>() / std::cmp::max(pixels.len(), 1) as f32;
             downsized_alpha.put_pixel(x, y, image::Rgb([average, average, average]));
