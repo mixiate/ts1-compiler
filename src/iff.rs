@@ -137,15 +137,14 @@ pub fn rebuild_iff_file(
     }
 
     // create PALT chunks
-    let (palt_transparent_color_indexes, palt_chunks) =
-        palt::create_palt_chunks(source_directory, &iff_description.sprites.sprites).unwrap();
-    new_chunks.extend(palt_chunks);
+    let palt_chunks = palt::create_palt_chunks(source_directory, &iff_description.sprites.sprites).unwrap();
+    new_chunks.extend(palt_chunks.chunks);
 
     // create SPR# and SPR2 chunks
     for sprite in &iff_description.sprites.sprites {
         new_chunks.push(sprite.to_chunk_bytes(
             source_directory,
-            palt_transparent_color_indexes[&sprite.palette_chunk_id],
+            palt_chunks.transparent_color_indexes[&sprite.palette_chunk_id],
         ));
     }
 

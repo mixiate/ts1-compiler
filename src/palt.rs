@@ -49,20 +49,22 @@ fn create_palt_chunk(palette_id: iff::ChunkId, sprite_path: &std::path::Path) ->
     Ok((transparent_color_index, palt_chunk))
 }
 
-pub fn create_palt_chunks(
-    source_directory: &std::path::Path,
-    sprites: &[spr::Sprite],
-) -> anyhow::Result<(std::collections::HashMap<iff::ChunkId, u8>, Vec<Vec<u8>>)> {
-    let mut palt_transparent_color_indexes = std::collections::HashMap::new();
+pub struct PaltChunks {
+    pub transparent_color_indexes: std::collections::HashMap<iff::ChunkId, u8>,
+    pub chunks: Vec<Vec<u8>>,
+}
+
+pub fn create_palt_chunks(source_directory: &std::path::Path, sprites: &[spr::Sprite]) -> anyhow::Result<PaltChunks> {
+    let mut transparent_color_indexes = std::collections::HashMap::new();
     let mut palt_chunks = Vec::new();
 
     const INVALID_TRANSPARENT_COLOR_INDEX: u8 = 255;
-    palt_transparent_color_indexes
+    transparent_color_indexes
         .entry(iff::ChunkId::invalid())
         .or_insert_with(|| INVALID_TRANSPARENT_COLOR_INDEX);
 
     for sprite in sprites {
-        match palt_transparent_color_indexes.entry(sprite.palette_chunk_id) {
+        match transparent_color_indexes.entry(sprite.palette_chunk_id) {
             std::collections::hash_map::Entry::Occupied(_) => (),
             std::collections::hash_map::Entry::Vacant(entry) => {
                 let color_sprite_file_path = source_directory.join(
@@ -80,5 +82,8 @@ pub fn create_palt_chunks(
         };
     }
 
-    Ok((palt_transparent_color_indexes, palt_chunks))
+    Ok(PaltChunks {
+        transparent_color_indexes,
+        chunks: palt_chunks,
+    })
 }
