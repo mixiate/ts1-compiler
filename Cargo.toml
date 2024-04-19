@@ -13,4 +13,5 @@ kmeans_colors = "0.6.0"
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 rand = "0.8.5"
 serde = { version = "1.0.197", features = ["serde_derive"] }
+serde_json = "1.0.116"
 winreg = "0.52.0"

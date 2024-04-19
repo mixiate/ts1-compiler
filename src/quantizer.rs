@@ -85,11 +85,12 @@ impl kmeans_colors::Calculate for R5g6b5 {
 }
 
 const QUANTIZER_TRANSPARENT_COLOR: imagequant::RGBA = imagequant::RGBA::new(255, 255, 0, 1);
+const TRANSPARENT_COLOR_INDEX: u8 = 0;
 
 pub fn create_color_palette(
     colour_set: &std::collections::HashSet<image::Rgb<u8>>,
     quantizer: &imagequant::Attributes,
-) -> (imagequant::QuantizationResult, Vec<[u8; 3]>) {
+) -> (imagequant::QuantizationResult, Vec<[u8; 3]>, u8) {
     let colors: Vec<_> = colour_set
         .iter()
         .map(|x| R5g6b5 {
@@ -136,7 +137,7 @@ pub fn create_color_palette(
         assert!(entry[2] == posterize(entry[2], 3));
     }
 
-    (quantization_result, palette)
+    (quantization_result, palette, TRANSPARENT_COLOR_INDEX)
 }
 
 pub fn dither_image(

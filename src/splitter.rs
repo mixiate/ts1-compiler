@@ -38,6 +38,7 @@ fn split_sprite(
     quantizer: &imagequant::Attributes,
     quantization_result: &mut imagequant::QuantizationResult,
     palette: &[[u8; 3]],
+    transparent_color_index: u8,
 ) -> anyhow::Result<()> {
     let extra_tiles = (object_dimensions.0 - 1) + (object_dimensions.1 - 1);
 
@@ -240,8 +241,9 @@ fn split_sprite(
                 .save(&split_sprite_a_file_path)
                 .with_context(|| error::file_write_error(&split_sprite_a_file_path))?;
 
-            let sprite_description = sprite::calculate_sprite_description(&split_sprite_a, zoom_level);
-            sprite::write_sprite_description_file(&sprite_description, &split_sprite_p_file_path).unwrap();
+            let sprite_image_description =
+                sprite::calculate_sprite_image_description(&split_sprite_a, zoom_level, transparent_color_index);
+            sprite::write_sprite_image_description_file(&sprite_image_description, &split_sprite_p_file_path).unwrap();
         }
     }
     Ok(())
@@ -417,7 +419,8 @@ pub fn split(
 
     let mut quantizer = imagequant::new();
     quantizer.set_speed(1).unwrap();
-    let (mut quantization_result, palette) = quantizer::create_color_palette(&color_set, &quantizer);
+    let (mut quantization_result, palette, transparent_color_index) =
+        quantizer::create_color_palette(&color_set, &quantizer);
 
     for (frame_name, rotation, color_sprite, alpha_sprite) in sprites {
         split_sprite(
@@ -434,6 +437,7 @@ pub fn split(
             &quantizer,
             &mut quantization_result,
             &palette,
+            transparent_color_index,
         )?;
 
         let color_sprite = downsize_color_sprite(&color_sprite, &alpha_sprite);
@@ -453,6 +457,7 @@ pub fn split(
             &quantizer,
             &mut quantization_result,
             &palette,
+            transparent_color_index,
         )?;
 
         let color_sprite = downsize_color_sprite(&color_sprite, &alpha_sprite);
@@ -472,6 +477,7 @@ pub fn split(
             &quantizer,
             &mut quantization_result,
             &palette,
+            transparent_color_index,
         )?;
     }
     Ok(())

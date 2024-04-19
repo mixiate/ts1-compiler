@@ -3,6 +3,7 @@ use crate::error;
 
 use anyhow::Context;
 
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct SpriteBounds {
     pub left: i16,
     pub top: i16,
@@ -10,77 +11,66 @@ pub struct SpriteBounds {
     pub bottom: i16,
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct SpriteOffsets {
     pub x: i32,
     pub y: i32,
     pub x_flipped: i32,
 }
 
-pub struct SpriteDescription {
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct SpriteImageDescription {
     pub bounds: SpriteBounds,
     pub offsets: SpriteOffsets,
+    pub transparent_color_index: u8,
 }
 
-fn get_sprite_description_file_path(sprite_file_path: &std::path::Path) -> anyhow::Result<std::path::PathBuf> {
+fn get_sprite_image_description_file_path(sprite_file_path: &std::path::Path) -> anyhow::Result<std::path::PathBuf> {
     let sprite_file_path = sprite_file_path.to_str().unwrap();
 
     let sprite_file_path = sprite_file_path
         .strip_suffix("_p.bmp")
         .or_else(|| sprite_file_path.strip_suffix("_z.bmp").or_else(|| sprite_file_path.strip_suffix("_a.bmp")))
         .with_context(|| format!("Failed to find sprite description file path for {}", sprite_file_path))?;
-    let sprite_file_path = sprite_file_path.to_owned() + " description.txt";
+    let sprite_file_path = sprite_file_path.to_owned() + " description.json";
     Ok(sprite_file_path.into())
 }
 
-pub fn read_sprite_description_file(sprite_file_path: &std::path::Path) -> anyhow::Result<SpriteDescription> {
-    let sprite_description_file_path = get_sprite_description_file_path(sprite_file_path)?;
-    let sprite_description = std::fs::read_to_string(&sprite_description_file_path)
-        .with_context(|| error::file_read_error(&sprite_description_file_path))?;
-    let sprite_description: Vec<i16> = sprite_description
-        .split(' ')
-        .map(|x| {
-            x.parse::<i16>()
-                .with_context(|| format!("Failed to parse {}", sprite_description_file_path.display()))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    #[allow(clippy::get_first)]
-    Ok(SpriteDescription {
-        bounds: SpriteBounds {
-            left: *sprite_description.get(0).unwrap(),
-            top: *sprite_description.get(1).unwrap(),
-            right: *sprite_description.get(2).unwrap(),
-            bottom: *sprite_description.get(3).unwrap(),
-        },
-        offsets: SpriteOffsets {
-            x: i32::from(*sprite_description.get(4).unwrap()),
-            y: i32::from(*sprite_description.get(5).unwrap()),
-            x_flipped: i32::from(*sprite_description.get(6).unwrap()),
-        },
+pub fn read_sprite_image_description_file(
+    sprite_file_path: &std::path::Path,
+) -> anyhow::Result<SpriteImageDescription> {
+    let sprite_image_description_file_path = get_sprite_image_description_file_path(sprite_file_path)?;
+    let json_string = std::fs::read_to_string(&sprite_image_description_file_path)
+        .with_context(|| error::file_read_error(&sprite_image_description_file_path))?;
+
+    serde_json::from_str::<SpriteImageDescription>(&json_string).with_context(|| {
+        format!(
+            "Failed to deserialize json file {}",
+            sprite_image_description_file_path.display()
+        )
     })
 }
 
-pub fn write_sprite_description_file(
-    sprite_description: &SpriteDescription,
+pub fn write_sprite_image_description_file(
+    sprite_image_description: &SpriteImageDescription,
     sprite_file_path: &std::path::Path,
 ) -> anyhow::Result<()> {
-    let sprite_description_file_path = get_sprite_description_file_path(sprite_file_path)?;
-    std::fs::write(
-        &sprite_description_file_path,
+    let sprite_image_description_file_path = get_sprite_image_description_file_path(sprite_file_path)?;
+    let json_string = serde_json::to_string_pretty(&sprite_image_description).with_context(|| {
         format!(
-            "{} {} {} {} {} {} {}",
-            sprite_description.bounds.left,
-            sprite_description.bounds.top,
-            sprite_description.bounds.right,
-            sprite_description.bounds.bottom,
-            sprite_description.offsets.x,
-            sprite_description.offsets.y,
-            sprite_description.offsets.x_flipped,
-        ),
-    )
-    .with_context(|| error::file_write_error(&sprite_description_file_path))
+            "Failed to serialize json file {}",
+            sprite_image_description_file_path.display()
+        )
+    })?;
+    std::fs::write(&sprite_image_description_file_path, json_string)
+        .with_context(|| error::file_write_error(&sprite_image_description_file_path))
 }
 
-pub fn calculate_sprite_description(alpha_sprite: &image::GrayImage, zoom_level: dgrp::ZoomLevel) -> SpriteDescription {
+pub fn calculate_sprite_image_description(
+    alpha_sprite: &image::GrayImage,
+    zoom_level: dgrp::ZoomLevel,
+    transparent_color_index: u8,
+) -> SpriteImageDescription {
     let bounds_left = {
         let mut bounds_left = 0;
         'outer: for x in 0..alpha_sprite.width() {
@@ -142,7 +132,7 @@ pub fn calculate_sprite_description(alpha_sprite: &image::GrayImage, zoom_level:
     let offset_y = 0 - (sprite_center_y - i32::try_from(bounds_bottom).unwrap());
     let offset_x_flipped = 0 - (sprite_center_x - left_bound_flipped);
 
-    SpriteDescription {
+    SpriteImageDescription {
         bounds: SpriteBounds {
             left: i16::try_from(bounds_left).unwrap(),
             top: i16::try_from(bounds_top).unwrap(),
@@ -154,5 +144,6 @@ pub fn calculate_sprite_description(alpha_sprite: &image::GrayImage, zoom_level:
             y: offset_y,
             x_flipped: offset_x_flipped,
         },
+        transparent_color_index,
     }
 }
