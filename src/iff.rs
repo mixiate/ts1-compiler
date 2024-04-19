@@ -138,7 +138,7 @@ pub fn rebuild_iff_file(
 
     // create PALT chunks
     let (palt_transparent_color_indexes, palt_chunks) =
-        palt::create_palt_chunks(source_directory, &iff_description.sprites.sprites);
+        palt::create_palt_chunks(source_directory, &iff_description.sprites.sprites).unwrap();
     new_chunks.extend(palt_chunks);
 
     // create SPR# and SPR2 chunks
