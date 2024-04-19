@@ -4,20 +4,17 @@ use crate::sprite;
 
 use anyhow::Context;
 
-fn format_split_sprite_frame_name(object_dimensions: (i32, i32), frame_name: &str, x: i32, y: i32) -> String {
-    let position = if object_dimensions.0 == 1 && object_dimensions.1 == 1 {
-        "".to_owned()
-    } else {
-        format!(" {x}_{y}")
-    };
-    frame_name.to_owned() + &position
+#[derive(Copy, Clone)]
+pub struct ObjectDimensions {
+    pub x: i32,
+    pub y: i32,
 }
 
 #[allow(clippy::too_many_arguments)]
 fn split_sprite(
     full_sprites_directory: &std::path::Path,
     split_sprites_directory: &std::path::Path,
-    object_dimensions: (i32, i32),
+    object_dimensions: ObjectDimensions,
     frame_name: &str,
     rotation: sprite::Rotation,
     zoom_level: sprite::ZoomLevel,
@@ -30,7 +27,7 @@ fn split_sprite(
     palette: &[[u8; 3]],
     transparent_color_index: u8,
 ) -> anyhow::Result<()> {
-    let extra_tiles = (object_dimensions.0 - 1) + (object_dimensions.1 - 1);
+    let extra_tiles = (object_dimensions.x - 1) + (object_dimensions.y - 1);
 
     let (tile_width, tile_height, split_sprite_width, split_sprite_height) = {
         const SPRITE_WIDTH: i32 = 136;
@@ -60,10 +57,9 @@ fn split_sprite(
 
     let transmogrified_rotation = rotation.transmogrify();
 
-    for y in 0..object_dimensions.1 {
-        for x in 0..object_dimensions.0 {
-            let split_sprite_frame_name = format_split_sprite_frame_name(object_dimensions, frame_name, x, y);
-            let split_sprite_frame_directory = split_sprites_directory.join(split_sprite_frame_name);
+    for y in 0..object_dimensions.y {
+        for x in 0..object_dimensions.x {
+            let split_sprite_frame_directory = split_sprites_directory.join(format!("{frame_name} {x}_{y}"));
 
             let transmogrified_rotation_name = transmogrified_rotation.to_string();
             let split_sprite_p_file_name = zoom_level.to_string() + "_" + &transmogrified_rotation_name + "_p.bmp";
@@ -76,15 +72,15 @@ fn split_sprite(
 
             let (x_offset, y_offset) = {
                 let x_offset_nw = -extra_tiles * (tile_width / 4);
-                let y_offset_nw = (object_dimensions.1 - object_dimensions.0) * (tile_height / 4);
+                let y_offset_nw = (object_dimensions.y - object_dimensions.x) * (tile_height / 4);
 
-                let x_offset_ne = (object_dimensions.1 - object_dimensions.0) * (tile_width / 4);
+                let x_offset_ne = (object_dimensions.y - object_dimensions.x) * (tile_width / 4);
                 let y_offset_ne = extra_tiles * (tile_height / 4);
 
                 let x_offset_se = extra_tiles * (tile_width / 4);
-                let y_offset_se = -(object_dimensions.1 - object_dimensions.0) * (tile_height / 4);
+                let y_offset_se = -(object_dimensions.y - object_dimensions.x) * (tile_height / 4);
 
-                let x_offset_sw = -(object_dimensions.1 - object_dimensions.0) * (tile_width / 4);
+                let x_offset_sw = -(object_dimensions.y - object_dimensions.x) * (tile_width / 4);
                 let y_offset_sw = -extra_tiles * (tile_height / 4);
 
                 let x_offset_x = x * (tile_width / 2);
@@ -144,7 +140,7 @@ fn split_sprite(
 
                     let alpha = full_sprite_a.get_pixel(full_x, full_y)[0];
 
-                    let (near_plane_depth, far_plane_depth) = if object_dimensions.0 == 1 && object_dimensions.1 == 1 {
+                    let (near_plane_depth, far_plane_depth) = if object_dimensions.x == 1 && object_dimensions.y == 1 {
                         (DEPTH_BOUND_NEAR, DEPTH_BOUND_FAR)
                     } else {
                         (
@@ -324,13 +320,13 @@ fn downsize_alpha_sprite(alpha: &image::Rgb32FImage) -> image::Rgb32FImage {
 pub fn split(
     full_sprites_directory: &std::path::Path,
     split_sprites_directory: &std::path::Path,
-    object_dimensions: (i32, i32),
+    object_dimensions: ObjectDimensions,
     frame_names: &[String],
 ) -> anyhow::Result<()> {
-    anyhow::ensure!(object_dimensions.0 > 0, "Object dimension x must be over 0");
-    anyhow::ensure!(object_dimensions.0 <= 32, "Object dimension x must be 32 or under");
-    anyhow::ensure!(object_dimensions.1 > 0, "Object dimension y must be over 0");
-    anyhow::ensure!(object_dimensions.1 <= 32, "Object dimension y must be 32 or under");
+    anyhow::ensure!(object_dimensions.x > 0, "Object dimension x must be over 0");
+    anyhow::ensure!(object_dimensions.x <= 32, "Object dimension x must be 32 or under");
+    anyhow::ensure!(object_dimensions.y > 0, "Object dimension y must be over 0");
+    anyhow::ensure!(object_dimensions.y <= 32, "Object dimension y must be 32 or under");
 
     let depth_planes = DepthPlanes {
         far_large: image::load_from_memory(include_bytes!("../res/depth plane far large.exr")).unwrap().to_rgb32f(),

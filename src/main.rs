@@ -57,7 +57,10 @@ fn main() -> anyhow::Result<()> {
             splitter::split(
                 full_sprites_directory,
                 split_sprites_directory,
-                (*object_dimension_x, *object_dimension_y),
+                splitter::ObjectDimensions {
+                    x: *object_dimension_x,
+                    y: *object_dimension_y,
+                },
                 frame_names,
             )?;
         }
