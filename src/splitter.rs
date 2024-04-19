@@ -58,10 +58,9 @@ fn split_sprite(
         }
     };
 
-    let (rotation_name, transmogrified_rotation_name) = dgrp::rotation_names(rotation);
-
-    let full_sprite_z_file_name = size.to_owned() + "_" + rotation_name + "_depth.exr";
-    let full_sprite_z_extra_file_name = size.to_owned() + "_" + rotation_name + "_depth_extra.exr";
+    let full_sprite_rotation_name = rotation.to_string();
+    let full_sprite_z_file_name = size.to_owned() + "_" + &full_sprite_rotation_name + "_depth.exr";
+    let full_sprite_z_extra_file_name = size.to_owned() + "_" + &full_sprite_rotation_name + "_depth_extra.exr";
     let full_sprite_z_file_path = full_sprites_directory.join(frame_name).join(full_sprite_z_file_name);
     let full_sprite_z_extra_file_path = full_sprites_directory.join(frame_name).join(full_sprite_z_extra_file_name);
     let mut full_sprite_z = image::open(&full_sprite_z_file_path)
@@ -72,14 +71,17 @@ fn split_sprite(
     let mut full_sprite_p = quantizer::dither_image(quantizer, quantization_result, full_sprite_p, full_sprite_a);
     let mut full_sprite_a = full_sprite_a.clone();
 
+    let transmogrified_rotation = rotation.transmogrify();
+
     for y in 0..object_dimensions.1 {
         for x in 0..object_dimensions.0 {
             let split_sprite_frame_name = format_split_sprite_frame_name(object_dimensions, frame_name, x, y);
             let split_sprite_frame_directory = split_sprites_directory.join(split_sprite_frame_name);
 
-            let split_sprite_p_file_name = size.to_owned() + "_" + transmogrified_rotation_name + "_p.bmp";
-            let split_sprite_z_file_name = size.to_owned() + "_" + transmogrified_rotation_name + "_z.bmp";
-            let split_sprite_a_file_name = size.to_owned() + "_" + transmogrified_rotation_name + "_a.bmp";
+            let transmogrified_rotation_name = transmogrified_rotation.to_string();
+            let split_sprite_p_file_name = size.to_owned() + "_" + &transmogrified_rotation_name + "_p.bmp";
+            let split_sprite_z_file_name = size.to_owned() + "_" + &transmogrified_rotation_name + "_z.bmp";
+            let split_sprite_a_file_name = size.to_owned() + "_" + &transmogrified_rotation_name + "_a.bmp";
 
             let split_sprite_p_file_path = split_sprite_frame_directory.join(&split_sprite_p_file_name);
             let split_sprite_z_file_path = split_sprite_frame_directory.join(&split_sprite_z_file_name);
@@ -238,7 +240,7 @@ fn split_sprite(
                 &sprite_image_description,
                 &split_sprite_frame_directory,
                 zoom_level,
-                rotation,
+                transmogrified_rotation,
             )
             .unwrap();
         }
@@ -364,11 +366,9 @@ pub fn split(
             dgrp::Rotation::SouthWest,
         ];
         for rotation in rotations {
-            let (rotation_name, _) = dgrp::rotation_names(rotation);
-
             let full_sprite_frame_directory = full_sprites_directory.join(frame_name);
 
-            let color_sprite_file_name = rotation_name.to_owned() + "_color.png";
+            let color_sprite_file_name = rotation.to_string() + "_color.png";
             let color_sprite_file_path = full_sprite_frame_directory.join(color_sprite_file_name);
             if !color_sprite_file_path.is_file() {
                 continue;
@@ -377,7 +377,7 @@ pub fn split(
                 .with_context(|| error::file_read_error(&color_sprite_file_path))?
                 .to_rgb8();
 
-            let alpha_sprite_file_name = rotation_name.to_owned() + "_alpha.exr";
+            let alpha_sprite_file_name = rotation.to_string() + "_alpha.exr";
             let alpha_sprite_file_path = full_sprite_frame_directory.join(alpha_sprite_file_name);
             let alpha_sprite = {
                 let mut image_reader = image::io::Reader::open(&alpha_sprite_file_path)

@@ -25,6 +25,29 @@ pub enum Rotation {
     SouthWest,
 }
 
+impl Rotation {
+    pub fn transmogrify(&self) -> Rotation {
+        match self {
+            Rotation::NorthWest => Rotation::SouthEast,
+            Rotation::NorthEast => Rotation::NorthEast,
+            Rotation::SouthEast => Rotation::NorthWest,
+            Rotation::SouthWest => Rotation::SouthWest,
+        }
+    }
+}
+
+impl std::fmt::Display for Rotation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let string = match self {
+            Rotation::NorthWest => "nw",
+            Rotation::NorthEast => "ne",
+            Rotation::SouthEast => "se",
+            Rotation::SouthWest => "sw",
+        };
+        write!(f, "{}", string)
+    }
+}
+
 fn deserialize_draw_group_rotation<'de, D>(deserializer: D) -> Result<Rotation, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -178,15 +201,5 @@ impl DrawGroup {
         dgrp_chunk_header.write(writer);
 
         writer.write_all(&dgrp_data).unwrap();
-    }
-}
-
-/// Returns the original and transmogrified rotation strings from a rotation
-pub fn rotation_names(rotation: Rotation) -> (&'static str, &'static str) {
-    match rotation {
-        Rotation::NorthWest => ("nw", "se"),
-        Rotation::NorthEast => ("ne", "ne"),
-        Rotation::SouthEast => ("se", "nw"),
-        Rotation::SouthWest => ("sw", "sw"),
     }
 }

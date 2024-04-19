@@ -35,8 +35,7 @@ fn get_sprite_image_description_file_path(
         dgrp::ZoomLevel::One => "medium",
         dgrp::ZoomLevel::Two => "small",
     };
-    let (_, rotation) = dgrp::rotation_names(rotation);
-    let description_file_name = format!("{zoom_level}_{rotation} description");
+    let description_file_name = format!("{zoom_level}_{} description", rotation);
     sprite_frame_directory.join(description_file_name).with_extension("json")
 }
 
