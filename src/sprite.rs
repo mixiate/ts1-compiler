@@ -1,7 +1,64 @@
-use crate::dgrp;
 use crate::error;
 
 use anyhow::Context;
+
+#[derive(Copy, Clone, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+pub enum ZoomLevel {
+    #[serde(rename = "0")]
+    Zero,
+    #[serde(rename = "1")]
+    One,
+    #[serde(rename = "2")]
+    Two,
+}
+
+impl std::fmt::Display for ZoomLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let string = match self {
+            ZoomLevel::Zero => "large",
+            ZoomLevel::One => "medium",
+            ZoomLevel::Two => "small",
+        };
+        write!(f, "{}", string)
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+pub enum Rotation {
+    #[serde(rename = "0")]
+    NorthWest,
+    #[serde(rename = "1")]
+    NorthEast,
+    #[serde(rename = "2")]
+    SouthEast,
+    #[serde(rename = "3")]
+    SouthWest,
+}
+
+impl Rotation {
+    pub fn transmogrify(&self) -> Rotation {
+        match self {
+            Rotation::NorthWest => Rotation::SouthEast,
+            Rotation::NorthEast => Rotation::NorthEast,
+            Rotation::SouthEast => Rotation::NorthWest,
+            Rotation::SouthWest => Rotation::SouthWest,
+        }
+    }
+}
+
+impl std::fmt::Display for Rotation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let string = match self {
+            Rotation::NorthWest => "nw",
+            Rotation::NorthEast => "ne",
+            Rotation::SouthEast => "se",
+            Rotation::SouthWest => "sw",
+        };
+        write!(f, "{}", string)
+    }
+}
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct SpriteBounds {
@@ -27,8 +84,8 @@ pub struct SpriteImageDescription {
 
 fn get_sprite_image_description_file_path(
     sprite_frame_directory: &std::path::Path,
-    zoom_level: dgrp::ZoomLevel,
-    rotation: dgrp::Rotation,
+    zoom_level: ZoomLevel,
+    rotation: Rotation,
 ) -> std::path::PathBuf {
     let description_file_name = format!("{zoom_level}_{rotation} description",);
     sprite_frame_directory.join(description_file_name).with_extension("json")
@@ -36,8 +93,8 @@ fn get_sprite_image_description_file_path(
 
 pub fn read_sprite_image_description_file(
     sprite_frame_directory: &std::path::Path,
-    zoom_level: dgrp::ZoomLevel,
-    rotation: dgrp::Rotation,
+    zoom_level: ZoomLevel,
+    rotation: Rotation,
 ) -> anyhow::Result<SpriteImageDescription> {
     let sprite_image_description_file_path =
         get_sprite_image_description_file_path(sprite_frame_directory, zoom_level, rotation);
@@ -55,8 +112,8 @@ pub fn read_sprite_image_description_file(
 pub fn write_sprite_image_description_file(
     sprite_image_description: &SpriteImageDescription,
     sprite_frame_directory: &std::path::Path,
-    zoom_level: dgrp::ZoomLevel,
-    rotation: dgrp::Rotation,
+    zoom_level: ZoomLevel,
+    rotation: Rotation,
 ) -> anyhow::Result<()> {
     let sprite_image_description_file_path =
         get_sprite_image_description_file_path(sprite_frame_directory, zoom_level, rotation);
@@ -72,7 +129,7 @@ pub fn write_sprite_image_description_file(
 
 pub fn calculate_sprite_image_description(
     alpha_sprite: &image::GrayImage,
-    zoom_level: dgrp::ZoomLevel,
+    zoom_level: ZoomLevel,
     transparent_color_index: u8,
 ) -> SpriteImageDescription {
     let bounds_left = {
@@ -128,9 +185,9 @@ pub fn calculate_sprite_image_description(
     const SPRITE_CENTER_X: i32 = 68;
     const SPRITE_CENTER_Y: i32 = 348;
     let (sprite_center_x, sprite_center_y) = match zoom_level {
-        dgrp::ZoomLevel::Zero => (SPRITE_CENTER_X, SPRITE_CENTER_Y),
-        dgrp::ZoomLevel::One => (SPRITE_CENTER_X / 2, SPRITE_CENTER_Y / 2),
-        dgrp::ZoomLevel::Two => (SPRITE_CENTER_X / 4, SPRITE_CENTER_Y / 4),
+        ZoomLevel::Zero => (SPRITE_CENTER_X, SPRITE_CENTER_Y),
+        ZoomLevel::One => (SPRITE_CENTER_X / 2, SPRITE_CENTER_Y / 2),
+        ZoomLevel::Two => (SPRITE_CENTER_X / 4, SPRITE_CENTER_Y / 4),
     };
     let offset_x = 0 - (sprite_center_x - i32::try_from(bounds_left).unwrap());
     let offset_y = 0 - (sprite_center_y - i32::try_from(bounds_bottom).unwrap());

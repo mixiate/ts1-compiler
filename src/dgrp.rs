@@ -1,5 +1,6 @@
 use crate::iff;
 use crate::spr;
+use crate::sprite;
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
@@ -12,43 +13,7 @@ pub struct DrawGroup {
     pub draw_group_item_lists: [DrawGroupItemList; 12],
 }
 
-#[derive(Copy, Clone, PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(deny_unknown_fields)]
-pub enum Rotation {
-    #[serde(rename = "0")]
-    NorthWest,
-    #[serde(rename = "1")]
-    NorthEast,
-    #[serde(rename = "2")]
-    SouthEast,
-    #[serde(rename = "3")]
-    SouthWest,
-}
-
-impl Rotation {
-    pub fn transmogrify(&self) -> Rotation {
-        match self {
-            Rotation::NorthWest => Rotation::SouthEast,
-            Rotation::NorthEast => Rotation::NorthEast,
-            Rotation::SouthEast => Rotation::NorthWest,
-            Rotation::SouthWest => Rotation::SouthWest,
-        }
-    }
-}
-
-impl std::fmt::Display for Rotation {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let string = match self {
-            Rotation::NorthWest => "nw",
-            Rotation::NorthEast => "ne",
-            Rotation::SouthEast => "se",
-            Rotation::SouthWest => "sw",
-        };
-        write!(f, "{}", string)
-    }
-}
-
-fn deserialize_draw_group_rotation<'de, D>(deserializer: D) -> Result<Rotation, D::Error>
+fn deserialize_draw_group_rotation<'de, D>(deserializer: D) -> Result<sprite::Rotation, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
@@ -57,50 +22,28 @@ where
 
     const FIELDS: &[&str] = &["1", "4", "16", "64"];
     match string.as_str() {
-        "1" => Ok(Rotation::SouthEast),
-        "4" => Ok(Rotation::NorthEast),
-        "16" => Ok(Rotation::NorthWest),
-        "64" => Ok(Rotation::SouthWest),
+        "1" => Ok(sprite::Rotation::SouthEast),
+        "4" => Ok(sprite::Rotation::NorthEast),
+        "16" => Ok(sprite::Rotation::NorthWest),
+        "64" => Ok(sprite::Rotation::SouthWest),
         _ => Err(serde::de::Error::unknown_field(&string, FIELDS)),
     }
 }
 
-fn serialize_draw_group_rotation<S>(rotation: &Rotation, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_draw_group_rotation<S>(rotation: &sprite::Rotation, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
     use serde::Serialize;
     match rotation {
-        Rotation::SouthEast => 1i32.serialize(serializer),
-        Rotation::NorthEast => 4i32.serialize(serializer),
-        Rotation::NorthWest => 16i32.serialize(serializer),
-        Rotation::SouthWest => 64i32.serialize(serializer),
+        sprite::Rotation::SouthEast => 1i32.serialize(serializer),
+        sprite::Rotation::NorthEast => 4i32.serialize(serializer),
+        sprite::Rotation::NorthWest => 16i32.serialize(serializer),
+        sprite::Rotation::SouthWest => 64i32.serialize(serializer),
     }
 }
 
-#[derive(Copy, Clone, PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(deny_unknown_fields)]
-pub enum ZoomLevel {
-    #[serde(rename = "0")]
-    Zero,
-    #[serde(rename = "1")]
-    One,
-    #[serde(rename = "2")]
-    Two,
-}
-
-impl std::fmt::Display for ZoomLevel {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let string = match self {
-            ZoomLevel::Zero => "large",
-            ZoomLevel::One => "medium",
-            ZoomLevel::Two => "small",
-        };
-        write!(f, "{}", string)
-    }
-}
-
-fn deserialize_draw_group_zoom_level<'de, D>(deserializer: D) -> Result<ZoomLevel, D::Error>
+fn deserialize_draw_group_zoom_level<'de, D>(deserializer: D) -> Result<sprite::ZoomLevel, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
@@ -109,22 +52,22 @@ where
 
     const FIELDS: &[&str] = &["1", "2", "3"];
     match string.as_str() {
-        "1" => Ok(ZoomLevel::Zero),
-        "2" => Ok(ZoomLevel::One),
-        "3" => Ok(ZoomLevel::Two),
+        "1" => Ok(sprite::ZoomLevel::Zero),
+        "2" => Ok(sprite::ZoomLevel::One),
+        "3" => Ok(sprite::ZoomLevel::Two),
         _ => Err(serde::de::Error::unknown_field(&string, FIELDS)),
     }
 }
 
-fn serialize_draw_group_zoom_level<S>(zoom_level: &ZoomLevel, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_draw_group_zoom_level<S>(zoom_level: &sprite::ZoomLevel, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
     use serde::Serialize;
     match zoom_level {
-        ZoomLevel::Zero => 1i32.serialize(serializer),
-        ZoomLevel::One => 2i32.serialize(serializer),
-        ZoomLevel::Two => 3i32.serialize(serializer),
+        sprite::ZoomLevel::Zero => 1i32.serialize(serializer),
+        sprite::ZoomLevel::One => 2i32.serialize(serializer),
+        sprite::ZoomLevel::Two => 3i32.serialize(serializer),
     }
 }
 
@@ -136,13 +79,13 @@ pub struct DrawGroupItemList {
         serialize_with = "serialize_draw_group_rotation",
         rename = "@dirflags"
     )]
-    pub rotation: Rotation,
+    pub rotation: sprite::Rotation,
     #[serde(
         deserialize_with = "deserialize_draw_group_zoom_level",
         serialize_with = "serialize_draw_group_zoom_level",
         rename = "@zoom"
     )]
-    pub zoom_level: ZoomLevel,
+    pub zoom_level: sprite::ZoomLevel,
     #[serde(rename = "drawgroupitem")]
     pub draw_group_items: Vec<DrawGroupItem>,
 }
@@ -180,15 +123,15 @@ impl DrawGroup {
 
         for draw_group_item_list in &self.draw_group_item_lists {
             let rotation = match draw_group_item_list.rotation {
-                Rotation::NorthWest => 16u32,
-                Rotation::NorthEast => 4u32,
-                Rotation::SouthEast => 1u32,
-                Rotation::SouthWest => 64u32,
+                sprite::Rotation::NorthWest => 16u32,
+                sprite::Rotation::NorthEast => 4u32,
+                sprite::Rotation::SouthEast => 1u32,
+                sprite::Rotation::SouthWest => 64u32,
             };
             let zoom_level = match draw_group_item_list.zoom_level {
-                ZoomLevel::Zero => 1u32,
-                ZoomLevel::One => 2u32,
-                ZoomLevel::Two => 3u32,
+                sprite::ZoomLevel::Zero => 1u32,
+                sprite::ZoomLevel::One => 2u32,
+                sprite::ZoomLevel::Two => 3u32,
             };
             let sprite_count = u32::try_from(draw_group_item_list.draw_group_items.len()).unwrap();
 

@@ -1,4 +1,3 @@
-use crate::dgrp;
 use crate::error;
 use crate::quantizer;
 use crate::sprite;
@@ -20,8 +19,8 @@ fn split_sprite(
     split_sprites_directory: &std::path::Path,
     object_dimensions: (i32, i32),
     frame_name: &str,
-    rotation: dgrp::Rotation,
-    zoom_level: dgrp::ZoomLevel,
+    rotation: sprite::Rotation,
+    zoom_level: sprite::ZoomLevel,
     full_sprite_p: &image::RgbImage,
     full_sprite_a: &image::Rgb32FImage,
     depth_plane_far: &image::Rgb32FImage,
@@ -40,9 +39,9 @@ fn split_sprite(
         const TILE_HEIGHT: i32 = 64;
 
         match zoom_level {
-            dgrp::ZoomLevel::Zero => (TILE_WIDTH, TILE_HEIGHT, SPRITE_WIDTH, SPRITE_HEIGHT),
-            dgrp::ZoomLevel::One => (TILE_WIDTH / 2, TILE_HEIGHT / 2, SPRITE_WIDTH / 2, SPRITE_HEIGHT / 2),
-            dgrp::ZoomLevel::Two => (TILE_WIDTH / 4, TILE_HEIGHT / 4, SPRITE_WIDTH / 4, SPRITE_HEIGHT / 4),
+            sprite::ZoomLevel::Zero => (TILE_WIDTH, TILE_HEIGHT, SPRITE_WIDTH, SPRITE_HEIGHT),
+            sprite::ZoomLevel::One => (TILE_WIDTH / 2, TILE_HEIGHT / 2, SPRITE_WIDTH / 2, SPRITE_HEIGHT / 2),
+            sprite::ZoomLevel::Two => (TILE_WIDTH / 4, TILE_HEIGHT / 4, SPRITE_WIDTH / 4, SPRITE_HEIGHT / 4),
         }
     };
 
@@ -94,19 +93,19 @@ fn split_sprite(
                 let y_offset_y = y * (tile_height / 2);
 
                 match rotation {
-                    dgrp::Rotation::NorthWest => (
+                    sprite::Rotation::NorthWest => (
                         x_offset_nw + x_offset_x + x_offset_y,
                         y_offset_nw + y_offset_x + -y_offset_y,
                     ),
-                    dgrp::Rotation::NorthEast => (
+                    sprite::Rotation::NorthEast => (
                         x_offset_ne + x_offset_x + -x_offset_y,
                         y_offset_ne + -y_offset_x + -y_offset_y,
                     ),
-                    dgrp::Rotation::SouthEast => (
+                    sprite::Rotation::SouthEast => (
                         x_offset_se + -x_offset_x + -x_offset_y,
                         y_offset_se + -y_offset_x + y_offset_y,
                     ),
-                    dgrp::Rotation::SouthWest => (
+                    sprite::Rotation::SouthWest => (
                         x_offset_sw + -x_offset_x + x_offset_y,
                         y_offset_sw + y_offset_x + y_offset_y,
                     ),
@@ -348,10 +347,10 @@ pub fn split(
 
     for frame_name in frame_names {
         let rotations = [
-            dgrp::Rotation::NorthWest,
-            dgrp::Rotation::NorthEast,
-            dgrp::Rotation::SouthEast,
-            dgrp::Rotation::SouthWest,
+            sprite::Rotation::NorthWest,
+            sprite::Rotation::NorthEast,
+            sprite::Rotation::SouthEast,
+            sprite::Rotation::SouthWest,
         ];
         for rotation in rotations {
             let full_sprite_frame_directory = full_sprites_directory.join(frame_name);
@@ -414,7 +413,7 @@ pub fn split(
             object_dimensions,
             frame_name,
             rotation,
-            dgrp::ZoomLevel::Zero,
+            sprite::ZoomLevel::Zero,
             &color_sprite,
             &alpha_sprite,
             &depth_planes.far_large,
@@ -434,7 +433,7 @@ pub fn split(
             object_dimensions,
             frame_name,
             rotation,
-            dgrp::ZoomLevel::One,
+            sprite::ZoomLevel::One,
             &color_sprite,
             &alpha_sprite,
             &depth_planes.far_medium,
@@ -454,7 +453,7 @@ pub fn split(
             object_dimensions,
             frame_name,
             rotation,
-            dgrp::ZoomLevel::Two,
+            sprite::ZoomLevel::Two,
             &color_sprite,
             &alpha_sprite,
             &depth_planes.far_small,

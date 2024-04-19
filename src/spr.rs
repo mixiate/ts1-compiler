@@ -1,5 +1,5 @@
-use crate::dgrp;
 use crate::iff;
+use crate::sprite;
 
 #[derive(Copy, Clone, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct SpriteIndex(u32);
@@ -46,9 +46,9 @@ pub struct SpriteFrame {
     #[serde(rename = "@index")]
     pub index: SpriteIndex,
     #[serde(rename = "@zoom")]
-    pub zoom_level: dgrp::ZoomLevel,
+    pub zoom_level: sprite::ZoomLevel,
     #[serde(rename = "@rot")]
-    pub rotation: dgrp::Rotation,
+    pub rotation: sprite::Rotation,
     #[serde(rename = "@x")]
     pub bounds_left: i16,
     #[serde(rename = "@y")]
