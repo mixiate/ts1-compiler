@@ -89,6 +89,17 @@ pub enum ZoomLevel {
     Two,
 }
 
+impl std::fmt::Display for ZoomLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let string = match self {
+            ZoomLevel::Zero => "large",
+            ZoomLevel::One => "medium",
+            ZoomLevel::Two => "small",
+        };
+        write!(f, "{}", string)
+    }
+}
+
 fn deserialize_draw_group_zoom_level<'de, D>(deserializer: D) -> Result<ZoomLevel, D::Error>
 where
     D: serde::Deserializer<'de>,

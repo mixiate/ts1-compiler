@@ -30,12 +30,7 @@ fn get_sprite_image_description_file_path(
     zoom_level: dgrp::ZoomLevel,
     rotation: dgrp::Rotation,
 ) -> std::path::PathBuf {
-    let zoom_level = match zoom_level {
-        dgrp::ZoomLevel::Zero => "large",
-        dgrp::ZoomLevel::One => "medium",
-        dgrp::ZoomLevel::Two => "small",
-    };
-    let description_file_name = format!("{zoom_level}_{} description", rotation);
+    let description_file_name = format!("{zoom_level}_{rotation} description",);
     sprite_frame_directory.join(description_file_name).with_extension("json")
 }
 

@@ -33,34 +33,22 @@ fn split_sprite(
 ) -> anyhow::Result<()> {
     let extra_tiles = (object_dimensions.0 - 1) + (object_dimensions.1 - 1);
 
-    let (tile_width, tile_height, size, split_sprite_width, split_sprite_height) = {
+    let (tile_width, tile_height, split_sprite_width, split_sprite_height) = {
         const SPRITE_WIDTH: i32 = 136;
         const SPRITE_HEIGHT: i32 = 384;
         const TILE_WIDTH: i32 = 128;
         const TILE_HEIGHT: i32 = 64;
 
         match zoom_level {
-            dgrp::ZoomLevel::Zero => (TILE_WIDTH, TILE_HEIGHT, "large", SPRITE_WIDTH, SPRITE_HEIGHT),
-            dgrp::ZoomLevel::One => (
-                TILE_WIDTH / 2,
-                TILE_HEIGHT / 2,
-                "medium",
-                SPRITE_WIDTH / 2,
-                SPRITE_HEIGHT / 2,
-            ),
-            dgrp::ZoomLevel::Two => (
-                TILE_WIDTH / 4,
-                TILE_HEIGHT / 4,
-                "small",
-                SPRITE_WIDTH / 4,
-                SPRITE_HEIGHT / 4,
-            ),
+            dgrp::ZoomLevel::Zero => (TILE_WIDTH, TILE_HEIGHT, SPRITE_WIDTH, SPRITE_HEIGHT),
+            dgrp::ZoomLevel::One => (TILE_WIDTH / 2, TILE_HEIGHT / 2, SPRITE_WIDTH / 2, SPRITE_HEIGHT / 2),
+            dgrp::ZoomLevel::Two => (TILE_WIDTH / 4, TILE_HEIGHT / 4, SPRITE_WIDTH / 4, SPRITE_HEIGHT / 4),
         }
     };
 
     let full_sprite_rotation_name = rotation.to_string();
-    let full_sprite_z_file_name = size.to_owned() + "_" + &full_sprite_rotation_name + "_depth.exr";
-    let full_sprite_z_extra_file_name = size.to_owned() + "_" + &full_sprite_rotation_name + "_depth_extra.exr";
+    let full_sprite_z_file_name = zoom_level.to_string() + "_" + &full_sprite_rotation_name + "_depth.exr";
+    let full_sprite_z_extra_file_name = zoom_level.to_string() + "_" + &full_sprite_rotation_name + "_depth_extra.exr";
     let full_sprite_z_file_path = full_sprites_directory.join(frame_name).join(full_sprite_z_file_name);
     let full_sprite_z_extra_file_path = full_sprites_directory.join(frame_name).join(full_sprite_z_extra_file_name);
     let mut full_sprite_z = image::open(&full_sprite_z_file_path)
@@ -79,9 +67,9 @@ fn split_sprite(
             let split_sprite_frame_directory = split_sprites_directory.join(split_sprite_frame_name);
 
             let transmogrified_rotation_name = transmogrified_rotation.to_string();
-            let split_sprite_p_file_name = size.to_owned() + "_" + &transmogrified_rotation_name + "_p.bmp";
-            let split_sprite_z_file_name = size.to_owned() + "_" + &transmogrified_rotation_name + "_z.bmp";
-            let split_sprite_a_file_name = size.to_owned() + "_" + &transmogrified_rotation_name + "_a.bmp";
+            let split_sprite_p_file_name = zoom_level.to_string() + "_" + &transmogrified_rotation_name + "_p.bmp";
+            let split_sprite_z_file_name = zoom_level.to_string() + "_" + &transmogrified_rotation_name + "_z.bmp";
+            let split_sprite_a_file_name = zoom_level.to_string() + "_" + &transmogrified_rotation_name + "_a.bmp";
 
             let split_sprite_p_file_path = split_sprite_frame_directory.join(&split_sprite_p_file_name);
             let split_sprite_z_file_path = split_sprite_frame_directory.join(&split_sprite_z_file_name);
