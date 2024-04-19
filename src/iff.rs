@@ -21,10 +21,6 @@ impl ChunkId {
     pub fn from_be_bytes(bytes: [u8; 2]) -> ChunkId {
         ChunkId(i16::from_be_bytes(bytes))
     }
-
-    pub fn invalid() -> ChunkId {
-        ChunkId(-1)
-    }
 }
 
 #[derive(Clone, Copy)]
@@ -138,14 +134,11 @@ pub fn rebuild_iff_file(
 
     // create PALT chunks
     let palt_chunks = palt::create_palt_chunks(source_directory, &iff_description.sprites.sprites).unwrap();
-    new_chunks.extend(palt_chunks.chunks);
+    new_chunks.extend(palt_chunks);
 
     // create SPR# and SPR2 chunks
     for sprite in &iff_description.sprites.sprites {
-        new_chunks.push(sprite.to_chunk_bytes(
-            source_directory,
-            palt_chunks.transparent_color_indexes[&sprite.palette_chunk_id],
-        ));
+        new_chunks.push(sprite.to_chunk_bytes(source_directory));
     }
 
     // create the output iff file, copying the header from the input file
