@@ -1,4 +1,7 @@
 use crate::dgrp;
+use crate::error;
+
+use anyhow::Context;
 
 pub struct SpriteBounds {
     pub left: i16,
@@ -18,41 +21,51 @@ pub struct SpriteDescription {
     pub offsets: SpriteOffsets,
 }
 
-pub fn get_sprite_description_file_path(sprite_file_path: &std::path::Path) -> std::path::PathBuf {
+fn get_sprite_description_file_path(sprite_file_path: &std::path::Path) -> anyhow::Result<std::path::PathBuf> {
     let sprite_file_path = sprite_file_path.to_str().unwrap();
 
     let sprite_file_path = sprite_file_path
         .strip_suffix("_p.bmp")
         .or_else(|| sprite_file_path.strip_suffix("_z.bmp").or_else(|| sprite_file_path.strip_suffix("_a.bmp")))
-        .unwrap();
+        .with_context(|| format!("Failed to find sprite description file path for {}", sprite_file_path))?;
     let sprite_file_path = sprite_file_path.to_owned() + " description.txt";
-    sprite_file_path.into()
+    Ok(sprite_file_path.into())
 }
 
-pub fn read_sprite_description_file(sprite_file_path: &std::path::Path) -> Option<SpriteDescription> {
-    let sprite_description_file_path = get_sprite_description_file_path(sprite_file_path);
-    let sprite_description = std::fs::read_to_string(sprite_description_file_path).ok()?;
-    let sprite_description: Vec<i32> = sprite_description.split(' ').map(|x| x.parse::<i32>().unwrap()).collect();
+pub fn read_sprite_description_file(sprite_file_path: &std::path::Path) -> anyhow::Result<SpriteDescription> {
+    let sprite_description_file_path = get_sprite_description_file_path(sprite_file_path)?;
+    let sprite_description = std::fs::read_to_string(&sprite_description_file_path)
+        .with_context(|| error::file_read_error(&sprite_description_file_path))?;
+    let sprite_description: Vec<i16> = sprite_description
+        .split(' ')
+        .map(|x| {
+            x.parse::<i16>()
+                .with_context(|| format!("Failed to parse {}", sprite_description_file_path.display()))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
     #[allow(clippy::get_first)]
-    Some(SpriteDescription {
+    Ok(SpriteDescription {
         bounds: SpriteBounds {
-            left: i16::try_from(*sprite_description.get(0).unwrap()).unwrap(),
-            top: i16::try_from(*sprite_description.get(1).unwrap()).unwrap(),
-            right: i16::try_from(*sprite_description.get(2).unwrap()).unwrap(),
-            bottom: i16::try_from(*sprite_description.get(3).unwrap()).unwrap(),
+            left: *sprite_description.get(0).unwrap(),
+            top: *sprite_description.get(1).unwrap(),
+            right: *sprite_description.get(2).unwrap(),
+            bottom: *sprite_description.get(3).unwrap(),
         },
         offsets: SpriteOffsets {
-            x: *sprite_description.get(4).unwrap(),
-            y: *sprite_description.get(5).unwrap(),
-            x_flipped: *sprite_description.get(6).unwrap(),
+            x: i32::from(*sprite_description.get(4).unwrap()),
+            y: i32::from(*sprite_description.get(5).unwrap()),
+            x_flipped: i32::from(*sprite_description.get(6).unwrap()),
         },
     })
 }
 
-pub fn write_sprite_description_file(sprite_description: &SpriteDescription, sprite_file_path: &std::path::Path) {
-    let sprite_description_file_path = get_sprite_description_file_path(sprite_file_path);
+pub fn write_sprite_description_file(
+    sprite_description: &SpriteDescription,
+    sprite_file_path: &std::path::Path,
+) -> anyhow::Result<()> {
+    let sprite_description_file_path = get_sprite_description_file_path(sprite_file_path)?;
     std::fs::write(
-        sprite_description_file_path,
+        &sprite_description_file_path,
         format!(
             "{} {} {} {} {} {} {}",
             sprite_description.bounds.left,
@@ -64,7 +77,7 @@ pub fn write_sprite_description_file(sprite_description: &SpriteDescription, spr
             sprite_description.offsets.x_flipped,
         ),
     )
-    .unwrap();
+    .with_context(|| error::file_write_error(&sprite_description_file_path))
 }
 
 pub fn calculate_sprite_description(alpha_sprite: &image::GrayImage, zoom_level: dgrp::ZoomLevel) -> SpriteDescription {

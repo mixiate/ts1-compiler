@@ -241,7 +241,7 @@ fn split_sprite(
                 .with_context(|| error::file_write_error(&split_sprite_a_file_path))?;
 
             let sprite_description = sprite::calculate_sprite_description(&split_sprite_a, zoom_level);
-            sprite::write_sprite_description_file(&sprite_description, &split_sprite_p_file_path);
+            sprite::write_sprite_description_file(&sprite_description, &split_sprite_p_file_path).unwrap();
         }
     }
     Ok(())
