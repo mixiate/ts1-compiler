@@ -25,21 +25,28 @@ pub struct SpriteImageDescription {
     pub transparent_color_index: u8,
 }
 
-fn get_sprite_image_description_file_path(sprite_file_path: &std::path::Path) -> anyhow::Result<std::path::PathBuf> {
-    let sprite_file_path = sprite_file_path.to_str().unwrap();
-
-    let sprite_file_path = sprite_file_path
-        .strip_suffix("_p.bmp")
-        .or_else(|| sprite_file_path.strip_suffix("_z.bmp").or_else(|| sprite_file_path.strip_suffix("_a.bmp")))
-        .with_context(|| format!("Failed to find sprite description file path for {}", sprite_file_path))?;
-    let sprite_file_path = sprite_file_path.to_owned() + " description.json";
-    Ok(sprite_file_path.into())
+fn get_sprite_image_description_file_path(
+    sprite_frame_directory: &std::path::Path,
+    zoom_level: dgrp::ZoomLevel,
+    rotation: dgrp::Rotation,
+) -> std::path::PathBuf {
+    let zoom_level = match zoom_level {
+        dgrp::ZoomLevel::Zero => "large",
+        dgrp::ZoomLevel::One => "medium",
+        dgrp::ZoomLevel::Two => "small",
+    };
+    let (_, rotation) = dgrp::rotation_names(rotation);
+    let description_file_name = format!("{zoom_level}_{rotation} description");
+    sprite_frame_directory.join(description_file_name).with_extension("json")
 }
 
 pub fn read_sprite_image_description_file(
-    sprite_file_path: &std::path::Path,
+    sprite_frame_directory: &std::path::Path,
+    zoom_level: dgrp::ZoomLevel,
+    rotation: dgrp::Rotation,
 ) -> anyhow::Result<SpriteImageDescription> {
-    let sprite_image_description_file_path = get_sprite_image_description_file_path(sprite_file_path)?;
+    let sprite_image_description_file_path =
+        get_sprite_image_description_file_path(sprite_frame_directory, zoom_level, rotation);
     let json_string = std::fs::read_to_string(&sprite_image_description_file_path)
         .with_context(|| error::file_read_error(&sprite_image_description_file_path))?;
 
@@ -53,9 +60,12 @@ pub fn read_sprite_image_description_file(
 
 pub fn write_sprite_image_description_file(
     sprite_image_description: &SpriteImageDescription,
-    sprite_file_path: &std::path::Path,
+    sprite_frame_directory: &std::path::Path,
+    zoom_level: dgrp::ZoomLevel,
+    rotation: dgrp::Rotation,
 ) -> anyhow::Result<()> {
-    let sprite_image_description_file_path = get_sprite_image_description_file_path(sprite_file_path)?;
+    let sprite_image_description_file_path =
+        get_sprite_image_description_file_path(sprite_frame_directory, zoom_level, rotation);
     let json_string = serde_json::to_string_pretty(&sprite_image_description).with_context(|| {
         format!(
             "Failed to serialize json file {}",

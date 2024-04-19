@@ -48,7 +48,7 @@ pub struct SpriteFrame {
     #[serde(rename = "@zoom")]
     pub zoom_level: dgrp::ZoomLevel,
     #[serde(rename = "@rot")]
-    rotation: i32,
+    pub rotation: dgrp::Rotation,
     #[serde(rename = "@x")]
     pub bounds_left: i16,
     #[serde(rename = "@y")]

@@ -5,15 +5,6 @@ use crate::sprite;
 
 use anyhow::Context;
 
-fn rotation_names(rotation: dgrp::Rotation) -> (&'static str, &'static str) {
-    match rotation {
-        dgrp::Rotation::NorthWest => ("nw", "se"),
-        dgrp::Rotation::NorthEast => ("ne", "ne"),
-        dgrp::Rotation::SouthEast => ("se", "nw"),
-        dgrp::Rotation::SouthWest => ("sw", "sw"),
-    }
-}
-
 fn format_split_sprite_frame_name(object_dimensions: (i32, i32), frame_name: &str, x: i32, y: i32) -> String {
     let position = if object_dimensions.0 == 1 && object_dimensions.1 == 1 {
         "".to_owned()
@@ -67,7 +58,7 @@ fn split_sprite(
         }
     };
 
-    let (rotation_name, transmogrified_rotation_name) = rotation_names(rotation);
+    let (rotation_name, transmogrified_rotation_name) = dgrp::rotation_names(rotation);
 
     let full_sprite_z_file_name = size.to_owned() + "_" + rotation_name + "_depth.exr";
     let full_sprite_z_extra_file_name = size.to_owned() + "_" + rotation_name + "_depth_extra.exr";
@@ -243,7 +234,13 @@ fn split_sprite(
 
             let sprite_image_description =
                 sprite::calculate_sprite_image_description(&split_sprite_a, zoom_level, transparent_color_index);
-            sprite::write_sprite_image_description_file(&sprite_image_description, &split_sprite_p_file_path).unwrap();
+            sprite::write_sprite_image_description_file(
+                &sprite_image_description,
+                &split_sprite_frame_directory,
+                zoom_level,
+                rotation,
+            )
+            .unwrap();
         }
     }
     Ok(())
@@ -367,7 +364,7 @@ pub fn split(
             dgrp::Rotation::SouthWest,
         ];
         for rotation in rotations {
-            let (rotation_name, _) = rotation_names(rotation);
+            let (rotation_name, _) = dgrp::rotation_names(rotation);
 
             let full_sprite_frame_directory = full_sprites_directory.join(frame_name);
 

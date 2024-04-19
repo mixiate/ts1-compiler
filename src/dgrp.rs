@@ -15,14 +15,44 @@ pub struct DrawGroup {
 #[derive(Copy, Clone, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub enum Rotation {
-    #[serde(rename = "16")]
+    #[serde(rename = "0")]
     NorthWest,
-    #[serde(rename = "4")]
-    NorthEast,
     #[serde(rename = "1")]
+    NorthEast,
+    #[serde(rename = "2")]
     SouthEast,
-    #[serde(rename = "64")]
+    #[serde(rename = "3")]
     SouthWest,
+}
+
+fn deserialize_draw_group_rotation<'de, D>(deserializer: D) -> Result<Rotation, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize;
+    let string = String::deserialize(deserializer)?;
+
+    const FIELDS: &[&str] = &["1", "4", "16", "64"];
+    match string.as_str() {
+        "1" => Ok(Rotation::SouthEast),
+        "4" => Ok(Rotation::NorthEast),
+        "16" => Ok(Rotation::NorthWest),
+        "64" => Ok(Rotation::SouthWest),
+        _ => Err(serde::de::Error::unknown_field(&string, FIELDS)),
+    }
+}
+
+fn serialize_draw_group_rotation<S>(rotation: &Rotation, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    use serde::Serialize;
+    match rotation {
+        Rotation::SouthEast => 1i32.serialize(serializer),
+        Rotation::NorthEast => 4i32.serialize(serializer),
+        Rotation::NorthWest => 16i32.serialize(serializer),
+        Rotation::SouthWest => 64i32.serialize(serializer),
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -67,7 +97,11 @@ where
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct DrawGroupItemList {
-    #[serde(rename = "@dirflags")]
+    #[serde(
+        deserialize_with = "deserialize_draw_group_rotation",
+        serialize_with = "serialize_draw_group_rotation",
+        rename = "@dirflags"
+    )]
     pub rotation: Rotation,
     #[serde(
         deserialize_with = "deserialize_draw_group_zoom_level",
@@ -144,5 +178,15 @@ impl DrawGroup {
         dgrp_chunk_header.write(writer);
 
         writer.write_all(&dgrp_data).unwrap();
+    }
+}
+
+/// Returns the original and transmogrified rotation strings from a rotation
+pub fn rotation_names(rotation: Rotation) -> (&'static str, &'static str) {
+    match rotation {
+        Rotation::NorthWest => ("nw", "se"),
+        Rotation::NorthEast => ("ne", "ne"),
+        Rotation::SouthEast => ("se", "nw"),
+        Rotation::SouthWest => ("sw", "sw"),
     }
 }
