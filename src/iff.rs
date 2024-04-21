@@ -1,5 +1,4 @@
 use crate::iff_description;
-use crate::objd;
 use crate::palt;
 
 pub const IFF_FILE_HEADER_SIZE: usize = 64;
@@ -111,13 +110,7 @@ pub fn rebuild_iff_file(
 
     // create OBJD chunks
     for object_definition in &iff_description.object_definitions.object_definitions {
-        let mut objd_chunk = std::vec::Vec::new();
-        object_definition.write(
-            &mut objd_chunk,
-            Some(*output_guids.get(&object_definition.chunk_id).unwrap()),
-        );
-        assert!(objd_chunk.len() == IFF_CHUNK_HEADER_SIZE + objd::OBJD_CHUNK_DATA_SIZE);
-        new_chunks.push(objd_chunk);
+        new_chunks.push(object_definition.to_bytes(Some(*output_guids.get(&object_definition.chunk_id).unwrap())));
     }
 
     // create SLOT chunks
