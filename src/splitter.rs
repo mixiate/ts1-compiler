@@ -18,12 +18,10 @@ fn split_sprite(
     frame_name: &str,
     rotation: sprite::Rotation,
     zoom_level: sprite::ZoomLevel,
-    full_sprite_p: &image::RgbImage,
+    full_sprite_p: &image::GrayImage,
     full_sprite_a: &image::Rgb32FImage,
     depth_plane_far: &image::Rgb32FImage,
     depth_plane_near: &image::Rgb32FImage,
-    quantizer: &imagequant::Attributes,
-    quantization_result: &mut imagequant::QuantizationResult,
     palette: &[[u8; 3]],
     transparent_color_index: u8,
 ) -> anyhow::Result<()> {
@@ -52,7 +50,7 @@ fn split_sprite(
         .to_rgb32f();
     let mut full_sprite_z_extra = image::open(full_sprite_z_extra_file_path).map(|x| x.to_rgb32f()).ok();
 
-    let mut full_sprite_p = quantizer::dither_image(quantizer, quantization_result, full_sprite_p, full_sprite_a);
+    let mut full_sprite_p = full_sprite_p.clone();
     let mut full_sprite_a = full_sprite_a.clone();
 
     let transmogrified_rotation = rotation.transmogrify();
@@ -224,8 +222,7 @@ fn split_sprite(
                 &split_sprite_frame_directory,
                 zoom_level,
                 transmogrified_rotation,
-            )
-            .unwrap();
+            )?;
         }
     }
     Ok(())
@@ -339,7 +336,7 @@ pub fn split(
 
     let mut sprites = Vec::new();
 
-    let mut color_set = std::collections::HashSet::new();
+    let mut histogram = quantizer::Histogram::new();
 
     for frame_name in frame_names {
         let rotations = [
@@ -379,30 +376,19 @@ pub fn split(
             let color_sprite = downsize_color_sprite(&color_sprite, &alpha_sprite);
             let alpha_sprite = downsize_alpha_sprite(&alpha_sprite);
 
-            for (rgb, a) in color_sprite.pixels().zip(alpha_sprite.pixels()) {
-                if a[0] > 0.0 {
-                    color_set.insert(*rgb);
-                }
-            }
+            let dithered_color_sprite = quantizer::dither_color_sprite_to_r5g6b5(color_sprite.clone());
 
-            sprites.push((frame_name, rotation, color_sprite, alpha_sprite));
+            histogram.add_colors(&dithered_color_sprite, &alpha_sprite);
+
+            sprites.push((frame_name, rotation, color_sprite, alpha_sprite, dithered_color_sprite));
         }
     }
 
-    anyhow::ensure!(
-        !color_set.is_empty(),
-        format!(
-            "Failed to find any sprites in directory {}",
-            full_sprites_directory.display()
-        )
-    );
+    let mut quantizer = histogram
+        .finalize()
+        .with_context(|| format!("No sprites found in {}", full_sprites_directory.display()))?;
 
-    let mut quantizer = imagequant::new();
-    quantizer.set_speed(1).unwrap();
-    let (mut quantization_result, palette, transparent_color_index) =
-        quantizer::create_color_palette(&color_set, &quantizer);
-
-    for (frame_name, rotation, color_sprite, alpha_sprite) in sprites {
+    for (frame_name, rotation, color_sprite, alpha_sprite, dithered_color_sprite) in sprites {
         split_sprite(
             full_sprites_directory,
             split_sprites_directory,
@@ -410,18 +396,17 @@ pub fn split(
             frame_name,
             rotation,
             sprite::ZoomLevel::Zero,
-            &color_sprite,
+            &quantizer.quantize(&dithered_color_sprite, &alpha_sprite),
             &alpha_sprite,
             &depth_planes.far_large,
             &depth_planes.near_large,
-            &quantizer,
-            &mut quantization_result,
-            &palette,
-            transparent_color_index,
+            &quantizer.palette,
+            quantizer.transparent_color_index,
         )?;
 
         let color_sprite = downsize_color_sprite(&color_sprite, &alpha_sprite);
         let alpha_sprite = downsize_alpha_sprite(&alpha_sprite);
+        let dithered_color_sprite = quantizer::dither_color_sprite_to_r5g6b5(color_sprite.clone());
 
         split_sprite(
             full_sprites_directory,
@@ -430,18 +415,17 @@ pub fn split(
             frame_name,
             rotation,
             sprite::ZoomLevel::One,
-            &color_sprite,
+            &quantizer.quantize(&dithered_color_sprite, &alpha_sprite),
             &alpha_sprite,
             &depth_planes.far_medium,
             &depth_planes.near_medium,
-            &quantizer,
-            &mut quantization_result,
-            &palette,
-            transparent_color_index,
+            &quantizer.palette,
+            quantizer.transparent_color_index,
         )?;
 
         let color_sprite = downsize_color_sprite(&color_sprite, &alpha_sprite);
         let alpha_sprite = downsize_alpha_sprite(&alpha_sprite);
+        let dithered_color_sprite = quantizer::dither_color_sprite_to_r5g6b5(color_sprite.clone());
 
         split_sprite(
             full_sprites_directory,
@@ -450,14 +434,12 @@ pub fn split(
             frame_name,
             rotation,
             sprite::ZoomLevel::Two,
-            &color_sprite,
+            &quantizer.quantize(&dithered_color_sprite, &alpha_sprite),
             &alpha_sprite,
             &depth_planes.far_small,
             &depth_planes.near_small,
-            &quantizer,
-            &mut quantization_result,
-            &palette,
-            transparent_color_index,
+            &quantizer.palette,
+            quantizer.transparent_color_index,
         )?;
     }
     Ok(())

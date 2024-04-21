@@ -9,7 +9,6 @@ clap = { version = "4.5.4", features = ["derive"] }
 formatx = "0.2.2"
 image = "0.25.1"
 imagequant = "4.3.0"
-kmeans_colors = "0.6.0"
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 rand = "0.8.5"
 serde = { version = "1.0.197", features = ["serde_derive"] }

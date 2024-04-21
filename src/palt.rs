@@ -4,7 +4,7 @@ use crate::spr;
 
 use anyhow::Context;
 
-pub const PALT_COLOR_ENTRY_COUNT: u32 = 256;
+pub const PALT_COLOR_ENTRY_COUNT: u16 = 256;
 
 fn create_palt_chunk(palette_id: iff::ChunkId, sprite_path: &std::path::Path) -> anyhow::Result<Vec<u8>> {
     const PALT_CHUNK_DATA_SIZE: usize = 784;
@@ -22,7 +22,7 @@ fn create_palt_chunk(palette_id: iff::ChunkId, sprite_path: &std::path::Path) ->
         .with_context(|| format!("{} is not in 8-bit color", sprite_path.display()))?
         .to_vec();
     anyhow::ensure!(
-        palette.len() == PALT_COLOR_ENTRY_COUNT as usize,
+        palette.len() == usize::from(PALT_COLOR_ENTRY_COUNT),
         format!("{} does not have a 256 color palette", &sprite_path.display())
     );
 
@@ -31,7 +31,7 @@ fn create_palt_chunk(palette_id: iff::ChunkId, sprite_path: &std::path::Path) ->
     let mut palt_chunk = std::vec::Vec::new();
     palt_chunk_header.write(&mut palt_chunk);
     palt_chunk.extend_from_slice(&PALT_VERSION.to_le_bytes());
-    palt_chunk.extend_from_slice(&PALT_COLOR_ENTRY_COUNT.to_le_bytes());
+    palt_chunk.extend_from_slice(&u32::from(PALT_COLOR_ENTRY_COUNT).to_le_bytes());
     palt_chunk.extend_from_slice(&0u64.to_le_bytes());
     palt_chunk.extend_from_slice(palette.as_slice());
 
