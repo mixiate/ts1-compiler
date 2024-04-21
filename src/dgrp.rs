@@ -13,64 +13,6 @@ pub struct DrawGroup {
     pub draw_group_item_lists: [DrawGroupItemList; 12],
 }
 
-fn deserialize_draw_group_rotation<'de, D>(deserializer: D) -> Result<sprite::Rotation, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    use serde::Deserialize;
-    let string = String::deserialize(deserializer)?;
-
-    const FIELDS: &[&str] = &["1", "4", "16", "64"];
-    match string.as_str() {
-        "1" => Ok(sprite::Rotation::SouthEast),
-        "4" => Ok(sprite::Rotation::NorthEast),
-        "16" => Ok(sprite::Rotation::NorthWest),
-        "64" => Ok(sprite::Rotation::SouthWest),
-        _ => Err(serde::de::Error::unknown_field(&string, FIELDS)),
-    }
-}
-
-fn serialize_draw_group_rotation<S>(rotation: &sprite::Rotation, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    use serde::Serialize;
-    match rotation {
-        sprite::Rotation::SouthEast => 1i32.serialize(serializer),
-        sprite::Rotation::NorthEast => 4i32.serialize(serializer),
-        sprite::Rotation::NorthWest => 16i32.serialize(serializer),
-        sprite::Rotation::SouthWest => 64i32.serialize(serializer),
-    }
-}
-
-fn deserialize_draw_group_zoom_level<'de, D>(deserializer: D) -> Result<sprite::ZoomLevel, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    use serde::Deserialize;
-    let string = String::deserialize(deserializer)?;
-
-    const FIELDS: &[&str] = &["1", "2", "3"];
-    match string.as_str() {
-        "1" => Ok(sprite::ZoomLevel::Zero),
-        "2" => Ok(sprite::ZoomLevel::One),
-        "3" => Ok(sprite::ZoomLevel::Two),
-        _ => Err(serde::de::Error::unknown_field(&string, FIELDS)),
-    }
-}
-
-fn serialize_draw_group_zoom_level<S>(zoom_level: &sprite::ZoomLevel, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    use serde::Serialize;
-    match zoom_level {
-        sprite::ZoomLevel::Zero => 1i32.serialize(serializer),
-        sprite::ZoomLevel::One => 2i32.serialize(serializer),
-        sprite::ZoomLevel::Two => 3i32.serialize(serializer),
-    }
-}
-
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct DrawGroupItemList {
@@ -156,5 +98,63 @@ impl DrawGroup {
         dgrp_chunk_header.write(&mut dgrp_chunk);
         dgrp_chunk.extend_from_slice(dgrp_data.as_slice());
         dgrp_chunk
+    }
+}
+
+fn deserialize_draw_group_rotation<'de, D>(deserializer: D) -> Result<sprite::Rotation, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize;
+    let string = String::deserialize(deserializer)?;
+
+    const FIELDS: &[&str] = &["1", "4", "16", "64"];
+    match string.as_str() {
+        "1" => Ok(sprite::Rotation::SouthEast),
+        "4" => Ok(sprite::Rotation::NorthEast),
+        "16" => Ok(sprite::Rotation::NorthWest),
+        "64" => Ok(sprite::Rotation::SouthWest),
+        _ => Err(serde::de::Error::unknown_field(&string, FIELDS)),
+    }
+}
+
+fn serialize_draw_group_rotation<S>(rotation: &sprite::Rotation, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    use serde::Serialize;
+    match rotation {
+        sprite::Rotation::SouthEast => 1i32.serialize(serializer),
+        sprite::Rotation::NorthEast => 4i32.serialize(serializer),
+        sprite::Rotation::NorthWest => 16i32.serialize(serializer),
+        sprite::Rotation::SouthWest => 64i32.serialize(serializer),
+    }
+}
+
+fn deserialize_draw_group_zoom_level<'de, D>(deserializer: D) -> Result<sprite::ZoomLevel, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize;
+    let string = String::deserialize(deserializer)?;
+
+    const FIELDS: &[&str] = &["1", "2", "3"];
+    match string.as_str() {
+        "1" => Ok(sprite::ZoomLevel::Zero),
+        "2" => Ok(sprite::ZoomLevel::One),
+        "3" => Ok(sprite::ZoomLevel::Two),
+        _ => Err(serde::de::Error::unknown_field(&string, FIELDS)),
+    }
+}
+
+fn serialize_draw_group_zoom_level<S>(zoom_level: &sprite::ZoomLevel, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    use serde::Serialize;
+    match zoom_level {
+        sprite::ZoomLevel::Zero => 1i32.serialize(serializer),
+        sprite::ZoomLevel::One => 2i32.serialize(serializer),
+        sprite::ZoomLevel::Two => 3i32.serialize(serializer),
     }
 }
