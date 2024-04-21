@@ -129,7 +129,7 @@ pub fn rebuild_iff_file(
 
     // create DGRP chunks
     for draw_group in &iff_description.draw_groups.draw_groups {
-        new_chunks.push(draw_group.to_chunk_bytes());
+        new_chunks.push(draw_group.to_bytes());
     }
 
     // create PALT chunks
@@ -138,7 +138,7 @@ pub fn rebuild_iff_file(
 
     // create SPR# and SPR2 chunks
     for sprite in &iff_description.sprites.sprites {
-        new_chunks.push(sprite.to_chunk_bytes(source_directory));
+        new_chunks.push(sprite.to_bytes(source_directory));
     }
 
     // create the output iff file, copying the header from the input file

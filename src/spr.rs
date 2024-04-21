@@ -105,14 +105,14 @@ struct SpriteChannel {
 }
 
 impl Sprite {
-    pub fn to_chunk_bytes(&self, source_directory: &std::path::Path) -> Vec<u8> {
+    pub fn to_bytes(&self, source_directory: &std::path::Path) -> Vec<u8> {
         match self.sprite_type {
-            SpriteType::Spr1 => self.to_spr1_chunk_bytes(source_directory),
-            SpriteType::Spr2 => self.to_spr2_chunk_bytes(source_directory),
+            SpriteType::Spr1 => self.to_spr1_bytes(source_directory),
+            SpriteType::Spr2 => self.to_spr2_bytes(source_directory),
         }
     }
 
-    fn to_spr1_chunk_bytes(&self, source_directory: &std::path::Path) -> Vec<u8> {
+    fn to_spr1_bytes(&self, source_directory: &std::path::Path) -> Vec<u8> {
         assert!(self.sprite_type == SpriteType::Spr1);
 
         let mut frame_datas = std::vec::Vec::new();
@@ -365,7 +365,7 @@ impl Sprite {
         spr1_chunk
     }
 
-    fn to_spr2_chunk_bytes(&self, source_directory: &std::path::Path) -> Vec<u8> {
+    fn to_spr2_bytes(&self, source_directory: &std::path::Path) -> Vec<u8> {
         assert!(self.sprite_type == SpriteType::Spr2);
 
         let mut frame_datas = std::vec::Vec::new();

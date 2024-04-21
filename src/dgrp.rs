@@ -54,7 +54,7 @@ pub struct DrawGroupItem {
 }
 
 impl DrawGroup {
-    pub fn to_chunk_bytes(&self) -> Vec<u8> {
+    pub fn to_bytes(&self) -> Vec<u8> {
         const DGRP_HEADER_VERSION: u16 = 20004u16;
         const DGRP_HEADER_IMAGE_COUNT: u32 = 12;
 
