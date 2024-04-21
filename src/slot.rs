@@ -64,8 +64,8 @@ pub struct SlotDescriptor {
 }
 
 impl Slot {
-    pub fn write(&self, writer: &mut impl std::io::Write) {
-        let mut slot_data = std::vec::Vec::new();
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut slot_data = Vec::new();
 
         const SLOT_HEADER_VERSION: u32 = 10;
         const SLOT_HEADER_SIZE: usize = 16;
@@ -104,9 +104,11 @@ impl Slot {
 
         assert!(slot_data.len() == SLOT_HEADER_SIZE + (self.slot_descriptors.len() * SLOT_DESCRIPTOR_SIZE));
 
+        let mut slot_chunk = Vec::with_capacity(iff::IFF_CHUNK_HEADER_SIZE + slot_data.len());
         let slot_chunk_header = iff::ChunkHeader::new("SLOT", slot_data.len(), self.chunk_id, &self.chunk_label);
-        writer.write_all(&slot_chunk_header.to_bytes()).unwrap();
+        slot_chunk.extend_from_slice(&slot_chunk_header.to_bytes());
+        slot_chunk.extend_from_slice(slot_data.as_slice());
 
-        writer.write_all(&slot_data).unwrap();
+        slot_chunk
     }
 }

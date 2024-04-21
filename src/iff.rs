@@ -115,9 +115,7 @@ pub fn rebuild_iff_file(
 
     // create SLOT chunks
     for slot in &iff_description.slots.slots {
-        let mut slot_chunk = std::vec::Vec::new();
-        slot.write(&mut slot_chunk);
-        new_chunks.push(slot_chunk);
+        new_chunks.push(slot.to_bytes());
     }
 
     // create DGRP chunks
