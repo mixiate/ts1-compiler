@@ -104,7 +104,7 @@ pub fn compile(xml_file_path: &std::path::Path) -> anyhow::Result<()> {
             source_directory.display()
         )
     })?;
-    iff_description.update_sprite_positions(source_directory);
+    iff_description.update_sprite_positions(source_directory)?;
 
     let the_sims_install_path = the_sims::install_path();
     let input_iff_file_path =
@@ -136,7 +136,7 @@ pub fn compile_advanced(
     if let Some((variant_original, variant_new)) = variant_names {
         iff_description.update_sprite_variants(variant_original, variant_new);
     }
-    iff_description.update_sprite_positions(source_directory);
+    iff_description.update_sprite_positions(source_directory)?;
 
     let (variant_original, variant_new) = variant_names.unzip();
     let the_sims_downloads_path = the_sims::install_path().join("downloads");
