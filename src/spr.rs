@@ -1,6 +1,9 @@
 use crate::iff;
 use crate::sprite;
 
+use serde_with::serde_as;
+use serde_with::BoolFromInt;
+
 #[derive(Copy, Clone, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct SpriteIndex(u32);
 
@@ -19,6 +22,7 @@ pub enum SpriteType {
     Spr2,
 }
 
+#[serde_as]
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Sprite {
@@ -35,7 +39,8 @@ pub struct Sprite {
     #[serde(rename = "@framecount")]
     pub sprite_frame_count: i32,
     #[serde(rename = "@iscustomwallstyle")]
-    is_custom_wall_style: i32,
+    #[serde_as(as = "BoolFromInt")]
+    is_custom_wall_style: bool,
     #[serde(rename = "spriteframe")]
     pub sprite_frames: Vec<SpriteFrame>,
 }
@@ -113,8 +118,12 @@ impl Sprite {
         let mut frame_datas = std::vec::Vec::new();
         for frame in &self.sprite_frames {
             let (width, height, pixels) = {
-                let file_path =
-                    source_directory.join(frame.sprite_channel_file_path_relative(SpriteChannelType::Depth));
+                let channel_type = if self.is_custom_wall_style {
+                    SpriteChannelType::Depth
+                } else {
+                    SpriteChannelType::Color
+                };
+                let file_path = source_directory.join(frame.sprite_channel_file_path_relative(channel_type));
                 let bmp_buffer = std::io::BufReader::new(std::fs::File::open(&file_path).unwrap());
                 let mut bmp = image::codecs::bmp::BmpDecoder::new(bmp_buffer).unwrap();
                 bmp.set_indexed_color(true);
@@ -133,7 +142,11 @@ impl Sprite {
             let width = usize::try_from(width).unwrap();
             let height = usize::try_from(height).unwrap();
 
-            let transparent_color_index = 255;
+            let transparent_color_index = if self.is_custom_wall_style {
+                255
+            } else {
+                frame.transparent_color_index
+            };
 
             enum RowCommand {
                 StartSprite,
