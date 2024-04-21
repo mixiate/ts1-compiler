@@ -127,9 +127,7 @@ pub fn rebuild_iff_file(
 
     // create DGRP chunks
     for draw_group in &iff_description.draw_groups.draw_groups {
-        let mut dgrp_chunk = std::vec::Vec::new();
-        draw_group.write(&mut dgrp_chunk);
-        new_chunks.push(dgrp_chunk);
+        new_chunks.push(draw_group.to_chunk_bytes());
     }
 
     // create PALT chunks

@@ -112,11 +112,11 @@ pub struct DrawGroupItem {
 }
 
 impl DrawGroup {
-    pub fn write(&self, writer: &mut impl std::io::Write) {
+    pub fn to_chunk_bytes(&self) -> Vec<u8> {
         const DGRP_HEADER_VERSION: u16 = 20004u16;
         const DGRP_HEADER_IMAGE_COUNT: u32 = 12;
 
-        let mut dgrp_data = std::vec::Vec::new();
+        let mut dgrp_data = Vec::new();
 
         dgrp_data.extend_from_slice(&DGRP_HEADER_VERSION.to_le_bytes());
         dgrp_data.extend_from_slice(&DGRP_HEADER_IMAGE_COUNT.to_le_bytes());
@@ -151,9 +151,10 @@ impl DrawGroup {
             }
         }
 
+        let mut dgrp_chunk = Vec::with_capacity(iff::IFF_CHUNK_HEADER_SIZE + dgrp_data.len());
         let dgrp_chunk_header = iff::ChunkHeader::new("DGRP", dgrp_data.len(), self.chunk_id, &self.chunk_label);
-        dgrp_chunk_header.write(writer);
-
-        writer.write_all(&dgrp_data).unwrap();
+        dgrp_chunk_header.write(&mut dgrp_chunk);
+        dgrp_chunk.extend_from_slice(dgrp_data.as_slice());
+        dgrp_chunk
     }
 }
