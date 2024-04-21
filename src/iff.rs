@@ -23,7 +23,7 @@ impl ChunkId {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ChunkHeader {
     chunk_type: [u8; 4],
     size: u32,
@@ -63,12 +63,14 @@ impl ChunkHeader {
         }
     }
 
-    pub fn write(&self, writer: &mut impl std::io::Write) {
-        writer.write_all(&self.chunk_type).unwrap();
-        writer.write_all(&self.size.to_be_bytes()).unwrap();
-        writer.write_all(&self.id.as_i16().to_be_bytes()).unwrap();
-        writer.write_all(&self.flags.to_be_bytes()).unwrap();
-        writer.write_all(&self.label).unwrap();
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::with_capacity(IFF_CHUNK_HEADER_SIZE);
+        bytes.extend_from_slice(&self.chunk_type);
+        bytes.extend_from_slice(&self.size.to_be_bytes());
+        bytes.extend_from_slice(&self.id.as_i16().to_be_bytes());
+        bytes.extend_from_slice(&self.flags.to_be_bytes());
+        bytes.extend_from_slice(&self.label);
+        bytes
     }
 }
 
@@ -152,15 +154,16 @@ pub fn rebuild_iff_file(
                 ChunkHeader::from_bytes(&input_iff_file_bytes[i..i + IFF_CHUNK_HEADER_SIZE].try_into().unwrap());
             let chunk_address_offset = u32::try_from(output_iff_file_bytes.len()).unwrap();
             let chunk_type = std::str::from_utf8(&chunk_header.chunk_type).unwrap();
+            let chunk_header_size = chunk_header.size;
             if !matches!(chunk_type, "DGRP" | "OBJD" | "PALT" | "SLOT" | "SPR#" | "SPR2" | "rsmp") {
                 chunk_descs
                     .entry(chunk_header.chunk_type)
                     .or_insert_with(std::vec::Vec::new)
                     .push((chunk_header, chunk_address_offset));
                 output_iff_file_bytes
-                    .extend_from_slice(&input_iff_file_bytes[i..i + usize::try_from(chunk_header.size).unwrap()]);
+                    .extend_from_slice(&input_iff_file_bytes[i..i + usize::try_from(chunk_header_size).unwrap()]);
             }
-            i += usize::try_from(chunk_header.size).unwrap();
+            i += usize::try_from(chunk_header_size).unwrap();
         }
     }
 
@@ -208,7 +211,7 @@ pub fn rebuild_iff_file(
             let mut rsmp_chunk = std::vec::Vec::new();
 
             let rsmp_chunk_header = ChunkHeader::new("rsmp", rsmp_data.len(), ChunkId(0), "");
-            rsmp_chunk_header.write(&mut rsmp_chunk);
+            rsmp_chunk.extend_from_slice(&rsmp_chunk_header.to_bytes());
 
             rsmp_chunk.extend_from_slice(rsmp_data.as_slice());
 

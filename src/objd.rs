@@ -220,7 +220,7 @@ pub struct ObjectDefinition {
 impl ObjectDefinition {
     pub fn write(&self, mut writer: impl std::io::Write, replacement_guid: Option<i32>) {
         let objd_chunk_header = iff::ChunkHeader::new("OBJD", OBJD_CHUNK_DATA_SIZE, self.chunk_id, &self.chunk_label);
-        objd_chunk_header.write(&mut writer);
+        writer.write_all(&objd_chunk_header.to_bytes()).unwrap();
 
         writer.write_all(&self.version.to_le_bytes()).unwrap();
         writer.write_all(&self.initialstacksize.to_le_bytes()).unwrap();

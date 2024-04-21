@@ -95,7 +95,7 @@ impl DrawGroup {
 
         let mut dgrp_chunk = Vec::with_capacity(iff::IFF_CHUNK_HEADER_SIZE + dgrp_data.len());
         let dgrp_chunk_header = iff::ChunkHeader::new("DGRP", dgrp_data.len(), self.chunk_id, &self.chunk_label);
-        dgrp_chunk_header.write(&mut dgrp_chunk);
+        dgrp_chunk.extend_from_slice(&dgrp_chunk_header.to_bytes());
         dgrp_chunk.extend_from_slice(dgrp_data.as_slice());
         dgrp_chunk
     }

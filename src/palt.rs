@@ -29,7 +29,7 @@ fn create_palt_chunk(palette_id: iff::ChunkId, sprite_path: &std::path::Path) ->
     let palette: Vec<_> = palette.iter().flat_map(|entry| [entry[0], entry[1], entry[2]]).collect();
 
     let mut palt_chunk = std::vec::Vec::new();
-    palt_chunk_header.write(&mut palt_chunk);
+    palt_chunk.extend_from_slice(&palt_chunk_header.to_bytes());
     palt_chunk.extend_from_slice(&PALT_VERSION.to_le_bytes());
     palt_chunk.extend_from_slice(&u32::from(PALT_COLOR_ENTRY_COUNT).to_le_bytes());
     palt_chunk.extend_from_slice(&0u64.to_le_bytes());

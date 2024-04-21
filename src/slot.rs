@@ -105,7 +105,7 @@ impl Slot {
         assert!(slot_data.len() == SLOT_HEADER_SIZE + (self.slot_descriptors.len() * SLOT_DESCRIPTOR_SIZE));
 
         let slot_chunk_header = iff::ChunkHeader::new("SLOT", slot_data.len(), self.chunk_id, &self.chunk_label);
-        slot_chunk_header.write(writer);
+        writer.write_all(&slot_chunk_header.to_bytes()).unwrap();
 
         writer.write_all(&slot_data).unwrap();
     }
