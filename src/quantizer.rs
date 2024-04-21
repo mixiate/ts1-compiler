@@ -9,9 +9,9 @@ fn posterize_normalized(color: f32, bits: u8) -> f32 {
     posterize(color, bits) as f32 / 255.0
 }
 
-pub struct DitheredImage(image::RgbImage);
+pub struct R5g6b5Image(image::RgbImage);
 
-pub fn dither_color_sprite_to_r5g6b5(image: image::RgbImage) -> DitheredImage {
+pub fn dither_color_sprite_to_r5g6b5(image: image::RgbImage) -> R5g6b5Image {
     let mut image = image::DynamicImage::ImageRgb8(image).into_rgb32f();
     for y in 0..image.height() {
         for x in 0..image.width() {
@@ -59,7 +59,7 @@ pub fn dither_color_sprite_to_r5g6b5(image: image::RgbImage) -> DitheredImage {
             }
         }
     }
-    DitheredImage(image::DynamicImage::ImageRgb32F(image).into_rgb8())
+    R5g6b5Image(image::DynamicImage::ImageRgb32F(image).into_rgb8())
 }
 
 const QUANTIZER_TRANSPARENT_COLOR: imagequant::RGBA = imagequant::RGBA::new(255, 255, 0, 1);
@@ -83,7 +83,7 @@ impl Histogram {
         }
     }
 
-    pub fn add_colors(&mut self, color: &DitheredImage, alpha: &image::Rgb32FImage) {
+    pub fn add_colors(&mut self, color: &R5g6b5Image, alpha: &image::Rgb32FImage) {
         for (rgb, a) in color.0.pixels().zip(alpha.pixels()) {
             if a[0] > 0.0 {
                 self.colors
@@ -163,7 +163,7 @@ pub struct Quantizer {
 }
 
 impl Quantizer {
-    pub fn quantize(&mut self, color: &DitheredImage, alpha: &image::Rgb32FImage) -> image::GrayImage {
+    pub fn quantize(&mut self, color: &R5g6b5Image, alpha: &image::Rgb32FImage) -> image::GrayImage {
         let quantizer_pixels: Vec<_> = color
             .0
             .pixels()
