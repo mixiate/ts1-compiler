@@ -105,14 +105,14 @@ struct SpriteChannel {
 }
 
 impl Sprite {
-    pub fn to_bytes(&self, source_directory: &std::path::Path) -> Vec<u8> {
+    pub fn to_bytes(&self, source_directory: &std::path::Path) -> anyhow::Result<Vec<u8>> {
         match self.sprite_type {
             SpriteType::Spr1 => self.to_spr1_bytes(source_directory),
             SpriteType::Spr2 => self.to_spr2_bytes(source_directory),
         }
     }
 
-    fn to_spr1_bytes(&self, source_directory: &std::path::Path) -> Vec<u8> {
+    fn to_spr1_bytes(&self, source_directory: &std::path::Path) -> anyhow::Result<Vec<u8>> {
         assert!(self.sprite_type == SpriteType::Spr1);
 
         let mut frame_datas = std::vec::Vec::new();
@@ -358,14 +358,14 @@ impl Sprite {
         }
 
         let mut spr1_chunk = std::vec::Vec::new();
-        let spr1_chunk_header = iff::ChunkHeader::new("SPR#", spr1_data.len(), self.chunk_id, &self.chunk_label);
+        let spr1_chunk_header = iff::ChunkHeader::new("SPR#", spr1_data.len(), self.chunk_id, &self.chunk_label)?;
         spr1_chunk.extend_from_slice(&spr1_chunk_header.to_bytes());
         spr1_chunk.extend_from_slice(spr1_data.as_slice());
 
-        spr1_chunk
+        Ok(spr1_chunk)
     }
 
-    fn to_spr2_bytes(&self, source_directory: &std::path::Path) -> Vec<u8> {
+    fn to_spr2_bytes(&self, source_directory: &std::path::Path) -> anyhow::Result<Vec<u8>> {
         assert!(self.sprite_type == SpriteType::Spr2);
 
         let mut frame_datas = std::vec::Vec::new();
@@ -567,10 +567,10 @@ impl Sprite {
         }
 
         let mut spr2_chunk = std::vec::Vec::new();
-        let spr2_chunk_header = iff::ChunkHeader::new("SPR2", spr2_data.len(), self.chunk_id, &self.chunk_label);
+        let spr2_chunk_header = iff::ChunkHeader::new("SPR2", spr2_data.len(), self.chunk_id, &self.chunk_label)?;
         spr2_chunk.extend_from_slice(&spr2_chunk_header.to_bytes());
         spr2_chunk.extend_from_slice(spr2_data.as_slice());
 
-        spr2_chunk
+        Ok(spr2_chunk)
     }
 }

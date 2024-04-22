@@ -218,10 +218,10 @@ pub struct ObjectDefinition {
 }
 
 impl ObjectDefinition {
-    pub fn to_bytes(&self, replacement_guid: Option<i32>) -> Vec<u8> {
+    pub fn to_bytes(&self, replacement_guid: Option<i32>) -> anyhow::Result<Vec<u8>> {
         let mut objd_chunk = Vec::with_capacity(iff::IFF_CHUNK_HEADER_SIZE + OBJD_CHUNK_DATA_SIZE);
 
-        let objd_chunk_header = iff::ChunkHeader::new("OBJD", OBJD_CHUNK_DATA_SIZE, self.chunk_id, &self.chunk_label);
+        let objd_chunk_header = iff::ChunkHeader::new("OBJD", OBJD_CHUNK_DATA_SIZE, self.chunk_id, &self.chunk_label)?;
         objd_chunk.extend_from_slice(&objd_chunk_header.to_bytes());
 
         objd_chunk.extend_from_slice(&self.version.to_le_bytes());
@@ -330,6 +330,6 @@ impl ObjectDefinition {
 
         assert!(objd_chunk.len() == iff::IFF_CHUNK_HEADER_SIZE + OBJD_CHUNK_DATA_SIZE);
 
-        objd_chunk
+        Ok(objd_chunk)
     }
 }

@@ -10,7 +10,7 @@ fn create_palt_chunk(palette_id: iff::ChunkId, sprite_path: &std::path::Path) ->
     const PALT_CHUNK_DATA_SIZE: usize = 784;
     const PALT_VERSION: u32 = 1;
 
-    let palt_chunk_header = iff::ChunkHeader::new("PALT", PALT_CHUNK_DATA_SIZE, palette_id, "");
+    let palt_chunk_header = iff::ChunkHeader::new("PALT", PALT_CHUNK_DATA_SIZE, palette_id, "")?;
 
     let bmp_buffer = std::fs::File::open(sprite_path).with_context(|| error::file_read_error(sprite_path))?;
     let bmp_buffer = std::io::BufReader::new(&bmp_buffer);

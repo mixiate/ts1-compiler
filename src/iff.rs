@@ -1,5 +1,8 @@
+use crate::error;
 use crate::iff_description;
 use crate::palt;
+
+use anyhow::Context;
 
 pub const IFF_FILE_HEADER_SIZE: usize = 64;
 pub const IFF_CHUNK_HEADER_SIZE: usize = 76;
@@ -32,24 +35,30 @@ pub struct ChunkHeader {
 }
 
 impl ChunkHeader {
-    pub fn new(chunk_type: &str, data_size: usize, id: ChunkId, label: &str) -> ChunkHeader {
+    pub fn new(chunk_type: &str, data_size: usize, id: ChunkId, label: &str) -> anyhow::Result<ChunkHeader> {
         assert!(std::mem::size_of::<ChunkHeader>() == IFF_CHUNK_HEADER_SIZE);
 
         let label = {
             let mut label_buffer = [0u8; IFF_CHUNK_LABEL_SIZE];
-            let label = std::ffi::CString::new(label).unwrap();
-            let label = label.to_bytes_with_nul();
-            assert!(label.len() < IFF_CHUNK_LABEL_SIZE);
-            label_buffer[..label.len()].copy_from_slice(label);
+            let cstring_label = std::ffi::CString::new(label).unwrap();
+            let cstring_label = cstring_label.to_bytes_with_nul();
+            anyhow::ensure!(
+                cstring_label.len() < IFF_CHUNK_LABEL_SIZE,
+                format!(
+                    "Chunk label \"{}\" is larger than {} bytes",
+                    label, IFF_CHUNK_LABEL_SIZE
+                )
+            );
+            label_buffer[..cstring_label.len()].copy_from_slice(cstring_label);
             label_buffer
         };
-        ChunkHeader {
+        Ok(ChunkHeader {
             chunk_type: chunk_type.as_bytes().try_into().unwrap(),
             size: u32::try_from(IFF_CHUNK_HEADER_SIZE + data_size).unwrap(),
             id,
             flags: 0x10,
             label,
-        }
+        })
     }
 
     pub fn from_bytes(chunk_bytes: &[u8; IFF_CHUNK_HEADER_SIZE]) -> ChunkHeader {
@@ -73,21 +82,22 @@ impl ChunkHeader {
     }
 }
 
-fn get_guids_from_iff_file_bytes(iff_file_bytes: &[u8]) -> std::collections::HashMap<ChunkId, i32> {
+fn get_guids_from_iff_file_bytes(iff_file_bytes: &[u8]) -> anyhow::Result<std::collections::HashMap<ChunkId, i32>> {
     let mut guids = std::collections::HashMap::new();
     let mut i = IFF_FILE_HEADER_SIZE;
     while i < iff_file_bytes.len() {
-        let chunk_header = ChunkHeader::from_bytes(&iff_file_bytes[i..i + IFF_CHUNK_HEADER_SIZE].try_into().unwrap());
-        let chunk_type = std::str::from_utf8(&chunk_header.chunk_type).unwrap();
+        let chunk_header = ChunkHeader::from_bytes(&iff_file_bytes[i..i + IFF_CHUNK_HEADER_SIZE].try_into()?);
+        let chunk_type = std::str::from_utf8(&chunk_header.chunk_type)?;
         if chunk_type == "OBJD" {
             const GUID_ADDRESS_OFFSET: usize = 28;
             let guid_address = i + IFF_CHUNK_HEADER_SIZE + GUID_ADDRESS_OFFSET;
-            let guid = i32::from_le_bytes(iff_file_bytes[guid_address..guid_address + 4].try_into().unwrap());
+            let guid = i32::from_le_bytes(iff_file_bytes[guid_address..guid_address + 4].try_into()?);
             guids.entry(chunk_header.id).or_insert(guid);
         }
-        i += usize::try_from(chunk_header.size).unwrap();
+        i += usize::try_from(chunk_header.size)?;
     }
-    guids
+    anyhow::ensure!(!guids.is_empty(), "Failed to find any GUIDs");
+    Ok(guids)
 }
 
 pub fn rebuild_iff_file(
@@ -95,14 +105,18 @@ pub fn rebuild_iff_file(
     iff_description: &iff_description::IffDescription,
     input_iff_file_path: &std::path::Path,
     output_iff_file_path: &std::path::Path,
-) {
-    let input_iff_file_bytes = std::fs::read(input_iff_file_path).unwrap();
+) -> anyhow::Result<()> {
+    let input_iff_file_bytes =
+        std::fs::read(input_iff_file_path).with_context(|| error::file_read_error(input_iff_file_path))?;
 
     let (input_guids, output_guids) = {
-        let output_iff_file_bytes = std::fs::read(output_iff_file_path).unwrap();
+        let output_iff_file_bytes =
+            std::fs::read(output_iff_file_path).with_context(|| error::file_read_error(output_iff_file_path))?;
         (
-            get_guids_from_iff_file_bytes(&input_iff_file_bytes),
-            get_guids_from_iff_file_bytes(&output_iff_file_bytes),
+            get_guids_from_iff_file_bytes(&input_iff_file_bytes)
+                .with_context(|| iff_decode_error(input_iff_file_path))?,
+            get_guids_from_iff_file_bytes(&output_iff_file_bytes)
+                .with_context(|| iff_decode_error(output_iff_file_path))?,
         )
     };
 
@@ -110,26 +124,33 @@ pub fn rebuild_iff_file(
 
     // create OBJD chunks
     for object_definition in &iff_description.object_definitions.object_definitions {
-        new_chunks.push(object_definition.to_bytes(Some(*output_guids.get(&object_definition.chunk_id).unwrap())));
+        let replacement_guid = *output_guids.get(&object_definition.chunk_id).with_context(|| {
+            format!(
+                "Failed to find replacement GUID for object {} {}",
+                object_definition.chunk_id.as_i32(),
+                object_definition.chunk_label
+            )
+        })?;
+        new_chunks.push(object_definition.to_bytes(Some(replacement_guid))?);
     }
 
     // create SLOT chunks
     for slot in &iff_description.slots.slots {
-        new_chunks.push(slot.to_bytes());
+        new_chunks.push(slot.to_bytes()?);
     }
 
     // create DGRP chunks
     for draw_group in &iff_description.draw_groups.draw_groups {
-        new_chunks.push(draw_group.to_bytes());
+        new_chunks.push(draw_group.to_bytes()?);
     }
 
     // create PALT chunks
-    let palt_chunks = palt::create_palt_chunks(source_directory, &iff_description.sprites.sprites).unwrap();
+    let palt_chunks = palt::create_palt_chunks(source_directory, &iff_description.sprites.sprites)?;
     new_chunks.extend(palt_chunks);
 
     // create SPR# and SPR2 chunks
     for sprite in &iff_description.sprites.sprites {
-        new_chunks.push(sprite.to_bytes(source_directory));
+        new_chunks.push(sprite.to_bytes(source_directory)?);
     }
 
     // create the output iff file, copying the header from the input file
@@ -141,20 +162,27 @@ pub fn rebuild_iff_file(
     {
         let mut i = output_iff_file_bytes.len();
         while i < input_iff_file_bytes.len() {
-            let chunk_header =
-                ChunkHeader::from_bytes(&input_iff_file_bytes[i..i + IFF_CHUNK_HEADER_SIZE].try_into().unwrap());
-            let chunk_address_offset = u32::try_from(output_iff_file_bytes.len()).unwrap();
-            let chunk_type = std::str::from_utf8(&chunk_header.chunk_type).unwrap();
+            let chunk_header = ChunkHeader::from_bytes(
+                &input_iff_file_bytes[i..i + IFF_CHUNK_HEADER_SIZE]
+                    .try_into()
+                    .with_context(|| iff_decode_error(input_iff_file_path))?,
+            );
+            let chunk_address_offset =
+                u32::try_from(output_iff_file_bytes.len()).with_context(|| iff_decode_error(input_iff_file_path))?;
+            let chunk_type =
+                std::str::from_utf8(&chunk_header.chunk_type).with_context(|| iff_decode_error(input_iff_file_path))?;
             let chunk_header_size = chunk_header.size;
             if !matches!(chunk_type, "DGRP" | "OBJD" | "PALT" | "SLOT" | "SPR#" | "SPR2" | "rsmp") {
                 chunk_descs
                     .entry(chunk_header.chunk_type)
                     .or_insert_with(std::vec::Vec::new)
                     .push((chunk_header, chunk_address_offset));
-                output_iff_file_bytes
-                    .extend_from_slice(&input_iff_file_bytes[i..i + usize::try_from(chunk_header_size).unwrap()]);
+                output_iff_file_bytes.extend_from_slice(
+                    &input_iff_file_bytes[i..i + usize::try_from(chunk_header_size)
+                        .with_context(|| iff_decode_error(input_iff_file_path))?],
+                );
             }
-            i += usize::try_from(chunk_header_size).unwrap();
+            i += usize::try_from(chunk_header_size).with_context(|| iff_decode_error(input_iff_file_path))?;
         }
     }
 
@@ -201,7 +229,7 @@ pub fn rebuild_iff_file(
 
             let mut rsmp_chunk = std::vec::Vec::new();
 
-            let rsmp_chunk_header = ChunkHeader::new("rsmp", rsmp_data.len(), ChunkId(0), "");
+            let rsmp_chunk_header = ChunkHeader::new("rsmp", rsmp_data.len(), ChunkId(0), "").unwrap();
             rsmp_chunk.extend_from_slice(&rsmp_chunk_header.to_bytes());
 
             rsmp_chunk.extend_from_slice(rsmp_data.as_slice());
@@ -251,5 +279,12 @@ pub fn rebuild_iff_file(
         }
     }
 
-    std::fs::write(output_iff_file_path, &output_iff_file_bytes).unwrap();
+    std::fs::write(output_iff_file_path, &output_iff_file_bytes)
+        .with_context(|| error::file_write_error(output_iff_file_path))?;
+
+    Ok(())
+}
+
+fn iff_decode_error(file_path: &std::path::Path) -> String {
+    format!("Failed to decode iff file {}", file_path.display())
 }

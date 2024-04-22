@@ -115,7 +115,7 @@ pub fn compile(xml_file_path: &std::path::Path) -> anyhow::Result<()> {
         &iff_description,
         &input_iff_file_path,
         &input_iff_file_path,
-    );
+    )?;
 
     save_xml_file(xml_file_path, &iff_description)?;
 
@@ -160,7 +160,7 @@ pub fn compile_advanced(
         &iff_description,
         &input_iff_file_path,
         &output_iff_file_path,
-    );
+    )?;
 
     if variant_original == variant_new {
         save_xml_file(&xml_file_path, &iff_description)?;
