@@ -6,7 +6,7 @@ pub struct Slot {
     #[serde(rename = "@name")]
     pub chunk_label: String,
     #[serde(rename = "@id")]
-    pub chunk_id: iff::ChunkId,
+    pub chunk_id: iff::IffChunkId,
     #[serde(rename = "slotdescriptor")]
     pub slot_descriptors: Vec<SlotDescriptor>,
 }
@@ -64,7 +64,7 @@ pub struct SlotDescriptor {
 }
 
 impl Slot {
-    pub fn to_bytes(&self) -> anyhow::Result<Vec<u8>> {
+    pub fn to_chunk(&self) -> anyhow::Result<iff::IffChunk> {
         let mut slot_data = Vec::new();
 
         const SLOT_HEADER_VERSION: u32 = 10;
@@ -104,11 +104,11 @@ impl Slot {
 
         assert!(slot_data.len() == SLOT_HEADER_SIZE + (self.slot_descriptors.len() * SLOT_DESCRIPTOR_SIZE));
 
-        let mut slot_chunk = Vec::with_capacity(iff::IFF_CHUNK_HEADER_SIZE + slot_data.len());
-        let slot_chunk_header = iff::ChunkHeader::new("SLOT", slot_data.len(), self.chunk_id, &self.chunk_label)?;
-        slot_chunk.extend_from_slice(&slot_chunk_header.to_bytes());
-        slot_chunk.extend_from_slice(slot_data.as_slice());
+        let slot_chunk_header = iff::IffChunkHeader::new(b"SLOT", slot_data.len(), self.chunk_id, &self.chunk_label)?;
 
-        Ok(slot_chunk)
+        Ok(iff::IffChunk {
+            header: slot_chunk_header,
+            data: slot_data,
+        })
     }
 }

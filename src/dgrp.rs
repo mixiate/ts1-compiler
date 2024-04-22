@@ -8,7 +8,7 @@ pub struct DrawGroup {
     #[serde(rename = "@name")]
     pub chunk_label: String,
     #[serde(rename = "@id")]
-    pub chunk_id: iff::ChunkId,
+    pub chunk_id: iff::IffChunkId,
     #[serde(rename = "drawgroupitemlist")]
     pub draw_group_item_lists: [DrawGroupItemList; 12],
 }
@@ -36,7 +36,7 @@ pub struct DrawGroupItemList {
 #[serde(deny_unknown_fields)]
 pub struct DrawGroupItem {
     #[serde(rename = "@spriteid")]
-    pub sprite_chunk_id: iff::ChunkId,
+    pub sprite_chunk_id: iff::IffChunkId,
     #[serde(rename = "@spritenum")]
     pub sprite_index: spr::SpriteIndex,
     #[serde(rename = "@pixelx")]
@@ -54,7 +54,7 @@ pub struct DrawGroupItem {
 }
 
 impl DrawGroup {
-    pub fn to_bytes(&self) -> anyhow::Result<Vec<u8>> {
+    pub fn to_chunk(&self) -> anyhow::Result<iff::IffChunk> {
         const DGRP_HEADER_VERSION: u16 = 20004u16;
         const DGRP_HEADER_IMAGE_COUNT: u32 = 12;
 
@@ -93,12 +93,12 @@ impl DrawGroup {
             }
         }
 
-        let mut dgrp_chunk = Vec::with_capacity(iff::IFF_CHUNK_HEADER_SIZE + dgrp_data.len());
-        let dgrp_chunk_header = iff::ChunkHeader::new("DGRP", dgrp_data.len(), self.chunk_id, &self.chunk_label)?;
-        dgrp_chunk.extend_from_slice(&dgrp_chunk_header.to_bytes());
-        dgrp_chunk.extend_from_slice(dgrp_data.as_slice());
+        let dgrp_chunk_header = iff::IffChunkHeader::new(b"DGRP", dgrp_data.len(), self.chunk_id, &self.chunk_label)?;
 
-        Ok(dgrp_chunk)
+        Ok(iff::IffChunk {
+            header: dgrp_chunk_header,
+            data: dgrp_data,
+        })
     }
 }
 

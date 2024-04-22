@@ -8,7 +8,7 @@ pub struct ObjectDefinition {
     #[serde(rename = "@name")]
     pub chunk_label: String,
     #[serde(rename = "@id")]
-    pub chunk_id: iff::ChunkId,
+    pub chunk_id: iff::IffChunkId,
     #[serde(rename = "@version")]
     pub version: i32,
     #[serde(rename = "@initialstacksize")]
@@ -218,118 +218,120 @@ pub struct ObjectDefinition {
 }
 
 impl ObjectDefinition {
-    pub fn to_bytes(&self, replacement_guid: Option<i32>) -> anyhow::Result<Vec<u8>> {
-        let mut objd_chunk = Vec::with_capacity(iff::IFF_CHUNK_HEADER_SIZE + OBJD_CHUNK_DATA_SIZE);
+    pub fn to_chunk(&self, replacement_guid: Option<i32>) -> anyhow::Result<iff::IffChunk> {
+        let objd_chunk_header =
+            iff::IffChunkHeader::new(b"OBJD", OBJD_CHUNK_DATA_SIZE, self.chunk_id, &self.chunk_label)?;
+        let mut objd_data = Vec::with_capacity(iff::IFF_CHUNK_HEADER_SIZE + OBJD_CHUNK_DATA_SIZE);
 
-        let objd_chunk_header = iff::ChunkHeader::new("OBJD", OBJD_CHUNK_DATA_SIZE, self.chunk_id, &self.chunk_label)?;
-        objd_chunk.extend_from_slice(&objd_chunk_header.to_bytes());
+        objd_data.extend_from_slice(&self.version.to_le_bytes());
+        objd_data.extend_from_slice(&self.initialstacksize.to_le_bytes());
+        objd_data.extend_from_slice(&self.basegraphic.to_le_bytes());
+        objd_data.extend_from_slice(&self.numgraphics.to_le_bytes());
+        objd_data.extend_from_slice(&self.maintreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.gardeningtreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.treetableid.to_le_bytes());
+        objd_data.extend_from_slice(&self.interactiongroup.to_le_bytes());
+        objd_data.extend_from_slice(&self.object_type.to_le_bytes());
+        objd_data.extend_from_slice(&self.masterid.to_le_bytes());
+        objd_data.extend_from_slice(&self.subindex.to_le_bytes());
+        objd_data.extend_from_slice(&self.washhandstreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.animtableid.to_le_bytes());
+        objd_data.extend_from_slice(&replacement_guid.unwrap_or(self.guid).to_le_bytes());
+        objd_data.extend_from_slice(&self.disabled.to_le_bytes());
+        objd_data.extend_from_slice(&self.portaltreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.price.to_le_bytes());
+        objd_data.extend_from_slice(&self.bodystringsid.to_le_bytes());
+        objd_data.extend_from_slice(&self.slotsid.to_le_bytes());
+        objd_data.extend_from_slice(&self.allowintersectiontreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.usesfntable.to_le_bytes());
+        objd_data.extend_from_slice(&self.unused4.to_le_bytes());
+        objd_data.extend_from_slice(&self.preptreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.cooktreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.surfacetreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.disposetreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.foodtreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.pickupfromslottreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.washdishtreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.eatingsurfacetreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.sittreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.standtreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.saleprice.to_le_bytes());
+        objd_data.extend_from_slice(&self.initialdepreciation.to_le_bytes());
+        objd_data.extend_from_slice(&self.dailydepreciation.to_le_bytes());
+        objd_data.extend_from_slice(&self.selfdepreciating.to_le_bytes());
+        objd_data.extend_from_slice(&self.depreciationlimit.to_le_bytes());
+        objd_data.extend_from_slice(&self.roomflags.to_le_bytes());
+        objd_data.extend_from_slice(&self.functionflags.to_le_bytes());
+        objd_data.extend_from_slice(&self.catalogid.to_le_bytes());
+        objd_data.extend_from_slice(&self.globalsimulationobject.to_le_bytes());
+        objd_data.extend_from_slice(&self.inittreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.placementtreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.userpickuptreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.wallstyle.to_le_bytes());
+        objd_data.extend_from_slice(&self.loadtreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.userplacementtreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.objectversion.to_le_bytes());
+        objd_data.extend_from_slice(&self.roomchangedtreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.motiveeffectsid.to_le_bytes());
+        objd_data.extend_from_slice(&self.cleanuptreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.levelinforequesttreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.catalogpopupid.to_le_bytes());
+        objd_data.extend_from_slice(&self.servingsurfacetreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.leveloffset.to_le_bytes());
+        objd_data.extend_from_slice(&self.shadow.to_le_bytes());
+        objd_data.extend_from_slice(&self.numattributes.to_le_bytes());
+        objd_data.extend_from_slice(&self.cleantreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.queueskippedtreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.frontfacedirection.to_le_bytes());
+        objd_data.extend_from_slice(&self.walladjacencychangedtreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.leadobject.to_le_bytes());
+        objd_data.extend_from_slice(&self.dynspritebaseid.to_le_bytes());
+        objd_data.extend_from_slice(&self.numdynsprites.to_le_bytes());
+        objd_data.extend_from_slice(&self.chairentryflags.to_le_bytes());
+        objd_data.extend_from_slice(&self.tilewidth.to_le_bytes());
+        objd_data.extend_from_slice(&self.suitnotcopyable.to_le_bytes());
+        objd_data.extend_from_slice(&self.buildmodetype.to_le_bytes());
+        objd_data.extend_from_slice(&self.originalguid.to_le_bytes());
+        objd_data.extend_from_slice(&self.originalsuitguid.to_le_bytes());
+        objd_data.extend_from_slice(&self.pickuptreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.thumbnailgraphicindex.to_le_bytes());
+        objd_data.extend_from_slice(&self.shadowflags.to_le_bytes());
+        objd_data.extend_from_slice(&self.footprintinsetmask.to_le_bytes());
+        objd_data.extend_from_slice(&self.mtadjupdatetreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.shadowbrightness.to_le_bytes());
+        objd_data.extend_from_slice(&self.repairtreeid.to_le_bytes());
+        objd_data.extend_from_slice(&self.customwallstyleid.to_le_bytes());
+        objd_data.extend_from_slice(&self.ratinghunger.to_le_bytes());
+        objd_data.extend_from_slice(&self.ratingcomfort.to_le_bytes());
+        objd_data.extend_from_slice(&self.ratinghygiene.to_le_bytes());
+        objd_data.extend_from_slice(&self.ratingbladder.to_le_bytes());
+        objd_data.extend_from_slice(&self.ratingenergy.to_le_bytes());
+        objd_data.extend_from_slice(&self.ratingfun.to_le_bytes());
+        objd_data.extend_from_slice(&self.ratingroom.to_le_bytes());
+        objd_data.extend_from_slice(&self.ratingskillflags.to_le_bytes());
+        objd_data.extend_from_slice(&self.numtypeattributes.to_le_bytes());
+        objd_data.extend_from_slice(&self.miscflags.to_le_bytes());
+        objd_data.extend_from_slice(&self.typeattrguid.to_le_bytes());
+        objd_data.extend_from_slice(&self.functionsubsort.to_le_bytes());
+        objd_data.extend_from_slice(&self.downtownsort.to_le_bytes());
+        objd_data.extend_from_slice(&self.keepbuying.to_le_bytes());
+        objd_data.extend_from_slice(&self.vacationsort.to_le_bytes());
+        objd_data.extend_from_slice(&self.resetlotaction.to_le_bytes());
+        objd_data.extend_from_slice(&self.communitysort.to_le_bytes());
+        objd_data.extend_from_slice(&self.dreamflags.to_le_bytes());
+        objd_data.extend_from_slice(&self.renderflags.to_le_bytes());
+        objd_data.extend_from_slice(&self.unused8.to_le_bytes());
+        objd_data.extend_from_slice(&self.unused9.to_le_bytes());
+        objd_data.extend_from_slice(&self.unused10.to_le_bytes());
+        objd_data.extend_from_slice(&self.unused11.to_le_bytes());
+        objd_data.extend_from_slice(&self.unused12.to_le_bytes());
+        objd_data.extend_from_slice(&self.unused13.to_le_bytes());
 
-        objd_chunk.extend_from_slice(&self.version.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.initialstacksize.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.basegraphic.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.numgraphics.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.maintreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.gardeningtreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.treetableid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.interactiongroup.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.object_type.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.masterid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.subindex.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.washhandstreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.animtableid.to_le_bytes());
-        objd_chunk.extend_from_slice(&replacement_guid.unwrap_or(self.guid).to_le_bytes());
-        objd_chunk.extend_from_slice(&self.disabled.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.portaltreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.price.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.bodystringsid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.slotsid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.allowintersectiontreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.usesfntable.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.unused4.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.preptreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.cooktreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.surfacetreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.disposetreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.foodtreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.pickupfromslottreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.washdishtreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.eatingsurfacetreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.sittreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.standtreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.saleprice.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.initialdepreciation.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.dailydepreciation.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.selfdepreciating.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.depreciationlimit.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.roomflags.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.functionflags.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.catalogid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.globalsimulationobject.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.inittreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.placementtreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.userpickuptreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.wallstyle.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.loadtreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.userplacementtreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.objectversion.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.roomchangedtreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.motiveeffectsid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.cleanuptreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.levelinforequesttreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.catalogpopupid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.servingsurfacetreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.leveloffset.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.shadow.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.numattributes.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.cleantreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.queueskippedtreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.frontfacedirection.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.walladjacencychangedtreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.leadobject.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.dynspritebaseid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.numdynsprites.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.chairentryflags.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.tilewidth.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.suitnotcopyable.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.buildmodetype.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.originalguid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.originalsuitguid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.pickuptreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.thumbnailgraphicindex.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.shadowflags.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.footprintinsetmask.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.mtadjupdatetreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.shadowbrightness.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.repairtreeid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.customwallstyleid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.ratinghunger.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.ratingcomfort.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.ratinghygiene.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.ratingbladder.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.ratingenergy.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.ratingfun.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.ratingroom.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.ratingskillflags.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.numtypeattributes.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.miscflags.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.typeattrguid.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.functionsubsort.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.downtownsort.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.keepbuying.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.vacationsort.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.resetlotaction.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.communitysort.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.dreamflags.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.renderflags.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.unused8.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.unused9.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.unused10.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.unused11.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.unused12.to_le_bytes());
-        objd_chunk.extend_from_slice(&self.unused13.to_le_bytes());
+        assert!(objd_data.len() == OBJD_CHUNK_DATA_SIZE);
 
-        assert!(objd_chunk.len() == iff::IFF_CHUNK_HEADER_SIZE + OBJD_CHUNK_DATA_SIZE);
-
-        Ok(objd_chunk)
+        Ok(iff::IffChunk {
+            header: objd_chunk_header,
+            data: objd_data,
+        })
     }
 }

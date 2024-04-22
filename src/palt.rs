@@ -6,11 +6,11 @@ use anyhow::Context;
 
 pub const PALT_COLOR_ENTRY_COUNT: u16 = 256;
 
-fn create_palt_chunk(palette_id: iff::ChunkId, sprite_path: &std::path::Path) -> anyhow::Result<Vec<u8>> {
+fn create_palt_chunk(palette_id: iff::IffChunkId, sprite_path: &std::path::Path) -> anyhow::Result<iff::IffChunk> {
     const PALT_CHUNK_DATA_SIZE: usize = 784;
     const PALT_VERSION: u32 = 1;
 
-    let palt_chunk_header = iff::ChunkHeader::new("PALT", PALT_CHUNK_DATA_SIZE, palette_id, "")?;
+    let palt_chunk_header = iff::IffChunkHeader::new(b"PALT", PALT_CHUNK_DATA_SIZE, palette_id, "")?;
 
     let bmp_buffer = std::fs::File::open(sprite_path).with_context(|| error::file_read_error(sprite_path))?;
     let bmp_buffer = std::io::BufReader::new(&bmp_buffer);
@@ -28,19 +28,24 @@ fn create_palt_chunk(palette_id: iff::ChunkId, sprite_path: &std::path::Path) ->
 
     let palette: Vec<_> = palette.iter().flat_map(|entry| [entry[0], entry[1], entry[2]]).collect();
 
-    let mut palt_chunk = std::vec::Vec::new();
-    palt_chunk.extend_from_slice(&palt_chunk_header.to_bytes());
-    palt_chunk.extend_from_slice(&PALT_VERSION.to_le_bytes());
-    palt_chunk.extend_from_slice(&u32::from(PALT_COLOR_ENTRY_COUNT).to_le_bytes());
-    palt_chunk.extend_from_slice(&0u64.to_le_bytes());
-    palt_chunk.extend_from_slice(palette.as_slice());
+    let mut palt_data = std::vec::Vec::new();
+    palt_data.extend_from_slice(&PALT_VERSION.to_le_bytes());
+    palt_data.extend_from_slice(&u32::from(PALT_COLOR_ENTRY_COUNT).to_le_bytes());
+    palt_data.extend_from_slice(&0u64.to_le_bytes());
+    palt_data.extend_from_slice(palette.as_slice());
 
-    assert!(palt_chunk.len() == iff::IFF_CHUNK_HEADER_SIZE + PALT_CHUNK_DATA_SIZE);
+    assert!(palt_data.len() == PALT_CHUNK_DATA_SIZE);
 
-    Ok(palt_chunk)
+    Ok(iff::IffChunk {
+        header: palt_chunk_header,
+        data: palt_data,
+    })
 }
 
-pub fn create_palt_chunks(source_directory: &std::path::Path, sprites: &[spr::Sprite]) -> anyhow::Result<Vec<Vec<u8>>> {
+pub fn create_palt_chunks(
+    source_directory: &std::path::Path,
+    sprites: &[spr::Sprite],
+) -> anyhow::Result<Vec<iff::IffChunk>> {
     let mut palt_chunks = std::collections::HashMap::new();
 
     for sprite in sprites {

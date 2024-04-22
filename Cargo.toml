@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.82"
+binrw = "0.13.3"
 clap = { version = "4.5.4", features = ["derive"] }
 formatx = "0.2.2"
 image = "0.25.1"

@@ -29,13 +29,13 @@ pub struct Sprite {
     #[serde(rename = "@name")]
     pub chunk_label: String,
     #[serde(rename = "@id")]
-    pub chunk_id: iff::ChunkId,
+    pub chunk_id: iff::IffChunkId,
     #[serde(rename = "@type")]
     pub sprite_type: SpriteType,
     #[serde(rename = "@multitile")]
     multi_tile: i32,
     #[serde(rename = "@defaultpaletteid")]
-    pub palette_chunk_id: iff::ChunkId,
+    pub palette_chunk_id: iff::IffChunkId,
     #[serde(rename = "@framecount")]
     pub sprite_frame_count: i32,
     #[serde(rename = "@iscustomwallstyle")]
@@ -67,7 +67,7 @@ pub struct SpriteFrame {
     #[serde(rename = "@height")]
     pub height: i16,
     #[serde(rename = "@paletteid")]
-    pub palette_chunk_id: iff::ChunkId,
+    pub palette_chunk_id: iff::IffChunkId,
     #[serde(rename = "@transparentpixel")]
     pub transparent_color_index: u8,
     #[serde(rename = "spritechannel")]
@@ -105,14 +105,14 @@ struct SpriteChannel {
 }
 
 impl Sprite {
-    pub fn to_bytes(&self, source_directory: &std::path::Path) -> anyhow::Result<Vec<u8>> {
+    pub fn to_chunk(&self, source_directory: &std::path::Path) -> anyhow::Result<iff::IffChunk> {
         match self.sprite_type {
-            SpriteType::Spr1 => self.to_spr1_bytes(source_directory),
-            SpriteType::Spr2 => self.to_spr2_bytes(source_directory),
+            SpriteType::Spr1 => self.to_spr1_chunk(source_directory),
+            SpriteType::Spr2 => self.to_spr2_chunk(source_directory),
         }
     }
 
-    fn to_spr1_bytes(&self, source_directory: &std::path::Path) -> anyhow::Result<Vec<u8>> {
+    fn to_spr1_chunk(&self, source_directory: &std::path::Path) -> anyhow::Result<iff::IffChunk> {
         assert!(self.sprite_type == SpriteType::Spr1);
 
         let mut frame_datas = std::vec::Vec::new();
@@ -357,15 +357,15 @@ impl Sprite {
             spr1_data.extend_from_slice(frame_data.as_slice());
         }
 
-        let mut spr1_chunk = std::vec::Vec::new();
-        let spr1_chunk_header = iff::ChunkHeader::new("SPR#", spr1_data.len(), self.chunk_id, &self.chunk_label)?;
-        spr1_chunk.extend_from_slice(&spr1_chunk_header.to_bytes());
-        spr1_chunk.extend_from_slice(spr1_data.as_slice());
+        let spr1_chunk_header = iff::IffChunkHeader::new(b"SPR#", spr1_data.len(), self.chunk_id, &self.chunk_label)?;
 
-        Ok(spr1_chunk)
+        Ok(iff::IffChunk {
+            header: spr1_chunk_header,
+            data: spr1_data,
+        })
     }
 
-    fn to_spr2_bytes(&self, source_directory: &std::path::Path) -> anyhow::Result<Vec<u8>> {
+    fn to_spr2_chunk(&self, source_directory: &std::path::Path) -> anyhow::Result<iff::IffChunk> {
         assert!(self.sprite_type == SpriteType::Spr2);
 
         let mut frame_datas = std::vec::Vec::new();
@@ -566,11 +566,11 @@ impl Sprite {
             spr2_data.extend_from_slice(frame_data.as_slice());
         }
 
-        let mut spr2_chunk = std::vec::Vec::new();
-        let spr2_chunk_header = iff::ChunkHeader::new("SPR2", spr2_data.len(), self.chunk_id, &self.chunk_label)?;
-        spr2_chunk.extend_from_slice(&spr2_chunk_header.to_bytes());
-        spr2_chunk.extend_from_slice(spr2_data.as_slice());
+        let spr2_chunk_header = iff::IffChunkHeader::new(b"SPR2", spr2_data.len(), self.chunk_id, &self.chunk_label)?;
 
-        Ok(spr2_chunk)
+        Ok(iff::IffChunk {
+            header: spr2_chunk_header,
+            data: spr2_data,
+        })
     }
 }
