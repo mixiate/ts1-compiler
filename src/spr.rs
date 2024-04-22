@@ -1,6 +1,8 @@
+use crate::error;
 use crate::iff;
 use crate::sprite;
 
+use anyhow::Context;
 use serde_with::serde_as;
 use serde_with::BoolFromInt;
 
@@ -75,13 +77,44 @@ pub struct SpriteFrame {
 }
 
 impl SpriteFrame {
-    pub fn sprite_channel_file_path_relative(&self, channel_type: SpriteChannelType) -> &str {
-        &self.sprite_channels.iter().find(|x| x.channel_type == channel_type).unwrap().file_path_relative
+    pub fn sprite_channel_file_path_relative(
+        &self,
+        channel_type: SpriteChannelType,
+        sprite_id: iff::IffChunkId,
+    ) -> anyhow::Result<&str> {
+        Ok(&self
+            .sprite_channels
+            .iter()
+            .find(|x| x.channel_type == channel_type)
+            .with_context(|| sprite_channel_error(channel_type, sprite_id, self.index))?
+            .file_path_relative)
     }
 
-    pub fn sprite_channel_file_path_relative_mut(&mut self, channel_type: SpriteChannelType) -> &mut String {
-        &mut self.sprite_channels.iter_mut().find(|x| x.channel_type == channel_type).unwrap().file_path_relative
+    pub fn sprite_channel_file_path_relative_mut(
+        &mut self,
+        channel_type: SpriteChannelType,
+        sprite_id: iff::IffChunkId,
+    ) -> anyhow::Result<&mut String> {
+        Ok(&mut self
+            .sprite_channels
+            .iter_mut()
+            .find(|x| x.channel_type == channel_type)
+            .with_context(|| sprite_channel_error(channel_type, sprite_id, self.index))?
+            .file_path_relative)
     }
+}
+
+fn sprite_channel_error(
+    channel_type: SpriteChannelType,
+    sprite_id: iff::IffChunkId,
+    frame_index: SpriteIndex,
+) -> String {
+    format!(
+        "Failed to find {} channel in sprite id: {} frame: {}",
+        channel_type,
+        sprite_id.as_i16(),
+        frame_index.0
+    )
 }
 
 #[derive(Copy, Clone, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -93,6 +126,17 @@ pub enum SpriteChannelType {
     Depth,
     #[serde(rename = "a")]
     Alpha,
+}
+
+impl std::fmt::Display for SpriteChannelType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let string = match self {
+            SpriteChannelType::Color => "color",
+            SpriteChannelType::Depth => "depth",
+            SpriteChannelType::Alpha => "alpha",
+        };
+        write!(f, "{}", string)
+    }
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -123,14 +167,14 @@ impl Sprite {
                 } else {
                     SpriteChannelType::Color
                 };
-                let file_path = source_directory.join(frame.sprite_channel_file_path_relative(channel_type));
-                let bmp_buffer = std::io::BufReader::new(std::fs::File::open(&file_path).unwrap());
-                let mut bmp = image::codecs::bmp::BmpDecoder::new(bmp_buffer).unwrap();
+                let file_path =
+                    source_directory.join(frame.sprite_channel_file_path_relative(channel_type, self.chunk_id)?);
+                let mut bmp = read_bmp(&file_path)?;
                 bmp.set_indexed_color(true);
                 let (width, height) = bmp.dimensions();
                 let mut pixels = vec![0u8; usize::try_from(width * height).unwrap()];
                 use image::ImageDecoder;
-                bmp.read_image(&mut pixels).unwrap();
+                bmp.read_image(&mut pixels).with_context(|| error::file_read_error(&file_path))?;
                 (width, height, pixels)
             };
 
@@ -373,31 +417,26 @@ impl Sprite {
             let width = u32::try_from(frame.bounds_right - frame.bounds_left).unwrap();
             let height = u32::try_from(frame.bounds_bottom - frame.bounds_top).unwrap();
             let (pixels_p, pixels_z, pixels_a) = {
-                let file_path_p =
-                    source_directory.join(frame.sprite_channel_file_path_relative(SpriteChannelType::Color));
-                let file_path_z =
-                    source_directory.join(frame.sprite_channel_file_path_relative(SpriteChannelType::Depth));
-                let file_path_a =
-                    source_directory.join(frame.sprite_channel_file_path_relative(SpriteChannelType::Alpha));
-                let bmp_buffer_p = std::io::BufReader::new(std::fs::File::open(&file_path_p).unwrap());
-                let bmp_buffer_z = std::io::BufReader::new(std::fs::File::open(&file_path_z).unwrap());
-                let bmp_buffer_a = std::io::BufReader::new(std::fs::File::open(&file_path_a).unwrap());
-                let mut bmp_p = image::codecs::bmp::BmpDecoder::new(bmp_buffer_p).unwrap();
-                let mut bmp_z = image::codecs::bmp::BmpDecoder::new(bmp_buffer_z).unwrap();
-                let mut bmp_a = image::codecs::bmp::BmpDecoder::new(bmp_buffer_a).unwrap();
-                bmp_p.set_indexed_color(true);
-                bmp_z.set_indexed_color(true);
-                bmp_a.set_indexed_color(true);
-                let mut pixels_p = vec![0u8; usize::try_from(width * height).unwrap()];
-                let mut pixels_z = vec![0u8; usize::try_from(width * height).unwrap()];
-                let mut pixels_a = vec![0u8; usize::try_from(width * height).unwrap()];
+                let file_path_p = source_directory
+                    .join(frame.sprite_channel_file_path_relative(SpriteChannelType::Color, self.chunk_id)?);
+                let file_path_z = source_directory
+                    .join(frame.sprite_channel_file_path_relative(SpriteChannelType::Depth, self.chunk_id)?);
+                let file_path_a = source_directory
+                    .join(frame.sprite_channel_file_path_relative(SpriteChannelType::Alpha, self.chunk_id)?);
 
                 let x = u32::try_from(frame.bounds_left).unwrap();
                 let y = u32::try_from(frame.bounds_top).unwrap();
-                use image::ImageDecoderRect;
-                bmp_p.read_rect(x, y, width, height, &mut pixels_p, usize::try_from(width).unwrap()).unwrap();
-                bmp_z.read_rect(x, y, width, height, &mut pixels_z, usize::try_from(width).unwrap()).unwrap();
-                bmp_a.read_rect(x, y, width, height, &mut pixels_a, usize::try_from(width).unwrap()).unwrap();
+
+                let mut bmp_p = read_bmp(&file_path_p)?;
+                let mut bmp_z = read_bmp(&file_path_z)?;
+                let mut bmp_a = read_bmp(&file_path_a)?;
+
+                let pixels_p = read_bmp_rect(&mut bmp_p, x, y, width, height)
+                    .with_context(|| error::file_read_error(&file_path_p))?;
+                let pixels_z = read_bmp_rect(&mut bmp_z, x, y, width, height)
+                    .with_context(|| error::file_read_error(&file_path_z))?;
+                let pixels_a = read_bmp_rect(&mut bmp_a, x, y, width, height)
+                    .with_context(|| error::file_read_error(&file_path_a))?;
 
                 (pixels_p, pixels_z, pixels_a)
             };
@@ -573,4 +612,31 @@ impl Sprite {
             data: spr2_data,
         })
     }
+}
+
+fn read_bmp(
+    file_path: &std::path::Path,
+) -> anyhow::Result<image::codecs::bmp::BmpDecoder<std::io::BufReader<std::fs::File>>> {
+    let bmp_buffer =
+        std::io::BufReader::new(std::fs::File::open(file_path).with_context(|| error::file_read_error(file_path))?);
+    let bmp = image::codecs::bmp::BmpDecoder::new(bmp_buffer).with_context(|| error::file_read_error(file_path))?;
+    anyhow::ensure!(
+        bmp.get_palette().is_some(),
+        format!("{} is not an 8-bit bmp", file_path.display())
+    );
+    Ok(bmp)
+}
+
+fn read_bmp_rect(
+    bmp: &mut image::codecs::bmp::BmpDecoder<std::io::BufReader<std::fs::File>>,
+    x: u32,
+    y: u32,
+    width: u32,
+    height: u32,
+) -> anyhow::Result<Vec<u8>> {
+    bmp.set_indexed_color(true);
+    let mut pixels = vec![0u8; usize::try_from(width * height).unwrap()];
+    use image::ImageDecoderRect;
+    bmp.read_rect(x, y, width, height, &mut pixels, usize::try_from(width).unwrap())?;
+    Ok(pixels)
 }

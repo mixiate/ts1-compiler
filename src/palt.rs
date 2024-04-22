@@ -52,12 +52,12 @@ pub fn create_palt_chunks(
         match palt_chunks.entry(sprite.palette_chunk_id) {
             std::collections::hash_map::Entry::Occupied(_) => (),
             std::collections::hash_map::Entry::Vacant(entry) => {
+                let sprite_frame = sprite
+                    .sprite_frames
+                    .first()
+                    .with_context(|| format!("Failed to find color channel in sprite {}", sprite.chunk_label))?;
                 let color_sprite_file_path = source_directory.join(
-                    sprite
-                        .sprite_frames
-                        .first()
-                        .with_context(|| format!("Failed to find color channel in sprite {}", sprite.chunk_label))?
-                        .sprite_channel_file_path_relative(spr::SpriteChannelType::Color),
+                    sprite_frame.sprite_channel_file_path_relative(spr::SpriteChannelType::Color, sprite.chunk_id)?,
                 );
                 entry.insert(create_palt_chunk(sprite.palette_chunk_id, &color_sprite_file_path)?);
             }

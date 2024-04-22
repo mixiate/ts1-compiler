@@ -134,7 +134,7 @@ pub fn compile_advanced(
     let mut iff_description = read_xml_file(&xml_file_path)?;
 
     if let Some((variant_original, variant_new)) = variant_names {
-        iff_description.update_sprite_variants(variant_original, variant_new);
+        iff_description.update_sprite_variants(variant_original, variant_new)?;
     }
     iff_description.update_sprite_positions(source_directory)?;
 

@@ -91,7 +91,7 @@ pub struct Sprites {
 }
 
 impl IffDescription {
-    pub fn update_sprite_variants(&mut self, variant_original: &str, variant_new: &str) {
+    pub fn update_sprite_variants(&mut self, variant_original: &str, variant_new: &str) -> anyhow::Result<()> {
         let variant_original = " - ".to_owned() + variant_original + " - Sprites";
         let variant_new = " - ".to_owned() + variant_new + " - Sprites";
 
@@ -100,10 +100,12 @@ impl IffDescription {
                 continue;
             }
             for frame in &mut sprite.sprite_frames {
-                let sprite_file_path = frame.sprite_channel_file_path_relative_mut(spr::SpriteChannelType::Color);
+                let sprite_file_path =
+                    frame.sprite_channel_file_path_relative_mut(spr::SpriteChannelType::Color, sprite.chunk_id)?;
                 *sprite_file_path = sprite_file_path.replacen(&variant_original, &variant_new, 1);
             }
         }
+        Ok(())
     }
 
     pub fn update_sprite_positions(&mut self, source_directory: &std::path::Path) -> anyhow::Result<()> {
@@ -114,8 +116,8 @@ impl IffDescription {
             for frame in &mut sprite.sprite_frames {
                 frame.palette_chunk_id = sprite.palette_chunk_id;
 
-                let alpha_sprite_file_path =
-                    source_directory.join(frame.sprite_channel_file_path_relative(spr::SpriteChannelType::Alpha));
+                let alpha_sprite_file_path = source_directory
+                    .join(frame.sprite_channel_file_path_relative(spr::SpriteChannelType::Alpha, sprite.chunk_id)?);
                 let sprite_frame_directory = alpha_sprite_file_path.parent().with_context(|| {
                     format!(
                         "Failed to get sprite frame directory from sprite file path {}",
