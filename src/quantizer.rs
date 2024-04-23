@@ -117,7 +117,7 @@ impl Histogram {
 
             let mut histogram_colors = histogram_colors.clone();
             histogram_colors.sort_by(|a, b| a.count.cmp(&b.count).reverse());
-            while palette.len() < usize::from(palt::PALT_COLOR_ENTRY_COUNT) - 1 {
+            while palette.len() < std::cmp::min(usize::from(palt::PALT_COLOR_ENTRY_COUNT) - 1, histogram_colors.len()) {
                 for entry in &histogram_colors {
                     if !palette.iter().any(|x| x[0] == entry.color.r && x[1] == entry.color.g && x[2] == entry.color.b)
                     {
