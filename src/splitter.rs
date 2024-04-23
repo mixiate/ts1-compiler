@@ -120,38 +120,45 @@ fn split_sprite(
             let full_sprite_width = split_sprite_width + (extra_tiles * (tile_width / 2));
             let full_sprite_height = split_sprite_height + (extra_tiles * (tile_width / 2));
 
-            let sub_sprite_left =
+            let sub_sprite_x =
                 u32::try_from((full_sprite_width / 2) + ((0 - (split_sprite_width / 2)) + x_offset)).unwrap();
-            let sub_sprite_top =
+            let sub_sprite_y =
                 u32::try_from((full_sprite_height / 2) + ((0 - (split_sprite_height / 2)) + y_offset)).unwrap();
 
             let split_sprite_width = u32::try_from(split_sprite_width).unwrap();
             let split_sprite_height = u32::try_from(split_sprite_height).unwrap();
+
+            use image::GenericImage;
+            use image::GenericImageView;
+            let mut full_sprite_p =
+                full_sprite_p.sub_image(sub_sprite_x, sub_sprite_y, split_sprite_width, split_sprite_height);
+            let mut full_sprite_z =
+                full_sprite_z.sub_image(sub_sprite_x, sub_sprite_y, split_sprite_width, split_sprite_height);
+            let mut full_sprite_a =
+                full_sprite_a.sub_image(sub_sprite_x, sub_sprite_y, split_sprite_width, split_sprite_height);
+
             let mut split_sprite_p = image::GrayImage::new(split_sprite_width, split_sprite_height);
             let mut split_sprite_z = image::GrayImage::new(split_sprite_width, split_sprite_height);
             let mut split_sprite_a = image::GrayImage::new(split_sprite_width, split_sprite_height);
 
-            for full_x in sub_sprite_left..(sub_sprite_left + split_sprite_width) {
-                for full_y in sub_sprite_top..(sub_sprite_top + split_sprite_height) {
-                    let split_x = full_x - sub_sprite_left;
-                    let split_y = full_y - sub_sprite_top;
-
-                    let alpha = quantizer::posterize_normalized(full_sprite_a.get_pixel(full_x, full_y)[0], 3);
+            for x in 0..split_sprite_width {
+                for y in 0..split_sprite_height {
+                    let alpha = quantizer::posterize_normalized(full_sprite_a.get_pixel(x, y)[0], 3);
 
                     let (near_plane_depth, far_plane_depth) = if object_dimensions.x == 1 && object_dimensions.y == 1 {
                         (DEPTH_BOUND_NEAR, DEPTH_BOUND_FAR)
                     } else {
                         (
-                            depth_plane_near.get_pixel(split_x, split_y)[0] as f64 + tile_depth_offset,
-                            depth_plane_far.get_pixel(split_x, split_y)[0] as f64 + tile_depth_offset,
+                            depth_plane_near.get_pixel(x, y)[0] as f64 + tile_depth_offset,
+                            depth_plane_far.get_pixel(x, y)[0] as f64 + tile_depth_offset,
                         )
                     };
 
-                    let depth = full_sprite_z.get_pixel(full_x, full_y)[0] as f64;
+                    let depth = full_sprite_z.get_pixel(x, y)[0] as f64;
                     let depth = {
                         if !(DEPTH_BOUND_NEAR..DEPTH_BOUND_FAR).contains(&depth) {
                             if let Some(ref full_sprite_z_extra) = full_sprite_z_extra {
-                                full_sprite_z_extra.get_pixel(full_x, full_y)[0] as f64
+                                full_sprite_z_extra.get_pixel(x, y)[0] as f64
                             } else {
                                 depth
                             }
@@ -161,25 +168,25 @@ fn split_sprite(
                     };
 
                     if alpha > 0.0 && depth >= near_plane_depth && depth <= far_plane_depth {
-                        split_sprite_p.put_pixel(split_x, split_y, *full_sprite_p.get_pixel(full_x, full_y));
+                        split_sprite_p.put_pixel(x, y, full_sprite_p.get_pixel(x, y));
 
-                        split_sprite_a.put_pixel(split_x, split_y, image::Luma([(alpha * 255.0) as u8]));
+                        split_sprite_a.put_pixel(x, y, image::Luma([(alpha * 255.0) as u8]));
 
                         let depth_normalized =
                             (DISTANCE_TO_CENTER_FROM_CAMERA + tile_depth_offset + (TILE_DEPTH_FULL_SPAN / 2.0) - depth)
                                 / TILE_DEPTH_FULL_SPAN;
                         let depth_u8 = 255 - (depth_normalized.clamp(0.0, 1.0) * 255.0) as u8;
-                        split_sprite_z.put_pixel(split_x, split_y, image::Luma([depth_u8]));
+                        split_sprite_z.put_pixel(x, y, image::Luma([depth_u8]));
 
-                        full_sprite_p.put_pixel(full_x, full_y, image::Luma([0]));
-                        full_sprite_z.put_pixel(full_x, full_y, image::Rgb([1.0, 1.0, 1.0]));
+                        full_sprite_p.put_pixel(x, y, image::Luma([0]));
+                        full_sprite_z.put_pixel(x, y, image::Rgb([1.0, 1.0, 1.0]));
                         if let Some(ref mut full_sprite_z_extra) = full_sprite_z_extra {
-                            full_sprite_z_extra.put_pixel(full_x, full_y, image::Rgb([1.0, 1.0, 1.0]));
+                            full_sprite_z_extra.put_pixel(x, y, image::Rgb([1.0, 1.0, 1.0]));
                         }
-                        full_sprite_a.put_pixel(full_x, full_y, image::Rgb([0.0, 0.0, 0.0]));
+                        full_sprite_a.put_pixel(x, y, image::Rgb([0.0, 0.0, 0.0]));
                     } else {
-                        split_sprite_p.put_pixel(split_x, split_y, image::Luma([0]));
-                        split_sprite_z.put_pixel(split_x, split_y, image::Luma([255]));
+                        split_sprite_p.put_pixel(x, y, image::Luma([0]));
+                        split_sprite_z.put_pixel(x, y, image::Luma([255]));
                     }
                 }
             }
