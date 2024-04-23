@@ -1,10 +1,10 @@
 use crate::palt;
 
-fn posterize(color: u8, bits: u8) -> u8 {
+pub fn posterize(color: u8, bits: u8) -> u8 {
     (color & !((1 << bits) - 1)) | (color >> (8 - bits))
 }
 
-fn posterize_normalized(color: f32, bits: u8) -> f32 {
+pub fn posterize_normalized(color: f32, bits: u8) -> f32 {
     let color = (color * 255.0) as u8;
     posterize(color, bits) as f32 / 255.0
 }

@@ -136,7 +136,7 @@ fn split_sprite(
                     let split_x = full_x - sub_sprite_left;
                     let split_y = full_y - sub_sprite_top;
 
-                    let alpha = full_sprite_a.get_pixel(full_x, full_y)[0];
+                    let alpha = quantizer::posterize_normalized(full_sprite_a.get_pixel(full_x, full_y)[0], 3);
 
                     let (near_plane_depth, far_plane_depth) = if object_dimensions.x == 1 && object_dimensions.y == 1 {
                         (DEPTH_BOUND_NEAR, DEPTH_BOUND_FAR)
@@ -290,25 +290,16 @@ fn downsize_color_sprite(color: &image::RgbImage, alpha: &image::Rgb32FImage) ->
 
 fn downsize_alpha_sprite(alpha: &image::Rgb32FImage) -> image::Rgb32FImage {
     let mut downsized_alpha = image::Rgb32FImage::new(alpha.width() / 2, alpha.height() / 2);
-    let mut pixels = Vec::with_capacity(4);
     for y in 0..downsized_alpha.height() {
         for x in 0..downsized_alpha.width() {
-            let original_x = x * 2;
-            let original_y = y * 2;
-            let indices = [
-                (original_x, original_y),
-                (original_x + 1, original_y),
-                (original_x, original_y + 1),
-                (original_x + 1, original_y + 1),
+            let alpha_values = [
+                alpha.get_pixel(x * 2, y * 2)[0],
+                alpha.get_pixel((x * 2) + 1, y * 2)[0],
+                alpha.get_pixel(x * 2, (y * 2) + 1)[0],
+                alpha.get_pixel((x * 2) + 1, (y * 2) + 1)[0],
             ];
-            for (x, y) in indices {
-                if alpha.get_pixel(x, y)[0] > 0.0 {
-                    pixels.push(alpha.get_pixel(x, y)[0]);
-                }
-            }
-            let average = pixels.iter().sum::<f32>() / std::cmp::max(pixels.len(), 1) as f32;
+            let average = alpha_values.iter().sum::<f32>() / 4.0;
             downsized_alpha.put_pixel(x, y, image::Rgb([average, average, average]));
-            pixels.clear();
         }
     }
     downsized_alpha
@@ -359,19 +350,9 @@ pub fn split(
 
             let alpha_sprite_file_name = rotation.to_string() + "_alpha.exr";
             let alpha_sprite_file_path = full_sprite_frame_directory.join(alpha_sprite_file_name);
-            let alpha_sprite = {
-                let mut image_reader = image::io::Reader::open(&alpha_sprite_file_path)
-                    .with_context(|| error::file_read_error(&alpha_sprite_file_path))?;
-                image_reader.no_limits();
-                let mut alpha_sprite =
-                    image_reader.decode().with_context(|| error::file_read_error(&alpha_sprite_file_path))?.to_rgb32f();
-                for pixel in alpha_sprite.pixels_mut() {
-                    for channel in pixel.0.iter_mut() {
-                        *channel = (*channel * 32.0).round() / 32.0
-                    }
-                }
-                alpha_sprite
-            };
+            let alpha_sprite = image::open(&alpha_sprite_file_path)
+                .with_context(|| error::file_read_error(&alpha_sprite_file_path))?
+                .to_rgb32f();
 
             let color_sprite = downsize_color_sprite(&color_sprite, &alpha_sprite);
             let alpha_sprite = downsize_alpha_sprite(&alpha_sprite);
