@@ -14,6 +14,7 @@ pub struct ObjectDimensions {
 fn split_sprite(
     full_sprites_directory: &std::path::Path,
     split_sprites_directory: &std::path::Path,
+    clipped_sprites_directory: &std::path::Path,
     object_dimensions: ObjectDimensions,
     frame_name: &str,
     rotation: sprite::Rotation,
@@ -232,6 +233,15 @@ fn split_sprite(
             )?;
         }
     }
+
+    write_clipped_sprite(
+        clipped_sprites_directory,
+        frame_name,
+        rotation,
+        zoom_level,
+        full_sprite_a,
+    )?;
+
     Ok(())
 }
 
@@ -313,8 +323,9 @@ fn downsize_alpha_sprite(alpha: &image::Rgb32FImage) -> image::Rgb32FImage {
 }
 
 pub fn split(
-    full_sprites_directory: &std::path::Path,
-    split_sprites_directory: &std::path::Path,
+    source_directory: &std::path::Path,
+    object_name: &str,
+    variant: Option<&str>,
     object_dimensions: ObjectDimensions,
     frame_names: &[String],
 ) -> anyhow::Result<()> {
@@ -331,6 +342,15 @@ pub fn split(
         near_medium: image::load_from_memory(include_bytes!("../res/depth plane near medium.exr")).unwrap().to_rgb32f(),
         near_small: image::load_from_memory(include_bytes!("../res/depth plane near small.exr")).unwrap().to_rgb32f(),
     };
+
+    let object_name = if let Some(variant) = variant {
+        format!("{} - {}", object_name, variant)
+    } else {
+        object_name.to_owned()
+    };
+    let full_sprites_directory = source_directory.join(format!("{} - Full Sprites", object_name));
+    let split_sprites_directory = source_directory.join(format!("{} - Sprites", object_name));
+    let clipped_sprites_directory = source_directory.join(format!("{} - Clipped Sprites", object_name));
 
     let mut sprites = Vec::new();
 
@@ -378,8 +398,9 @@ pub fn split(
 
     for (frame_name, rotation, color_sprite, alpha_sprite, dithered_color_sprite) in sprites {
         split_sprite(
-            full_sprites_directory,
-            split_sprites_directory,
+            &full_sprites_directory,
+            &split_sprites_directory,
+            &clipped_sprites_directory,
             object_dimensions,
             frame_name,
             rotation,
@@ -397,8 +418,9 @@ pub fn split(
         let dithered_color_sprite = quantizer::dither_color_sprite_to_r5g6b5(color_sprite.clone());
 
         split_sprite(
-            full_sprites_directory,
-            split_sprites_directory,
+            &full_sprites_directory,
+            &split_sprites_directory,
+            &clipped_sprites_directory,
             object_dimensions,
             frame_name,
             rotation,
@@ -416,8 +438,9 @@ pub fn split(
         let dithered_color_sprite = quantizer::dither_color_sprite_to_r5g6b5(color_sprite.clone());
 
         split_sprite(
-            full_sprites_directory,
-            split_sprites_directory,
+            &full_sprites_directory,
+            &split_sprites_directory,
+            &clipped_sprites_directory,
             object_dimensions,
             frame_name,
             rotation,
@@ -429,6 +452,65 @@ pub fn split(
             &quantizer.palette,
             quantizer.transparent_color_index,
         )?;
+    }
+
+    if clipped_sprites_directory.is_dir() {
+        remove_empty_directories(&clipped_sprites_directory)
+            .with_context(|| format!("Failed to remove {}", clipped_sprites_directory.display()))?;
+    }
+
+    Ok(())
+}
+
+fn write_clipped_sprite(
+    clipped_sprites_directory: &std::path::Path,
+    frame_name: &str,
+    rotation: sprite::Rotation,
+    zoom_level: sprite::ZoomLevel,
+    mut alpha: image::Rgb32FImage,
+) -> anyhow::Result<()> {
+    for pixel in alpha.pixels_mut() {
+        pixel.0.iter_mut().for_each(|x| *x = quantizer::posterize_normalized(*x, 3));
+    }
+
+    let clipped_sprites_frame_directory = clipped_sprites_directory.join(frame_name);
+
+    let clipped_sprite_file_name = zoom_level.to_string() + "_" + &rotation.to_string() + "_alpha.png";
+    let clipped_sprite_file_path = clipped_sprites_directory.join(frame_name).join(clipped_sprite_file_name);
+
+    if clipped_sprite_file_path.is_file() {
+        std::fs::remove_file(&clipped_sprite_file_path)
+            .with_context(|| format!("Failed to remove {}", clipped_sprite_file_path.display()))?;
+    }
+
+    if alpha.pixels().any(|x| x[0] != 0.0) {
+        if !clipped_sprites_frame_directory.is_dir() {
+            std::fs::create_dir_all(&clipped_sprites_frame_directory).with_context(|| {
+                format!(
+                    "Failed to create directory {}",
+                    clipped_sprites_frame_directory.display()
+                )
+            })?;
+        }
+        image::DynamicImage::ImageRgb32F(alpha)
+            .into_luma8()
+            .save(&clipped_sprite_file_path)
+            .with_context(|| error::file_write_error(&clipped_sprite_file_path))?;
+    }
+
+    Ok(())
+}
+
+fn remove_empty_directories(path: &std::path::Path) -> std::io::Result<()> {
+    for entry in path.read_dir()? {
+        let entry = entry?;
+        if entry.path().is_file() {
+            return Ok(());
+        }
+        remove_empty_directories(&entry.path())?;
+    }
+    if path.read_dir()?.next().is_none() {
+        std::fs::remove_dir(path)?;
     }
     Ok(())
 }

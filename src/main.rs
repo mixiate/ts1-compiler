@@ -22,8 +22,10 @@ struct Cli {
 #[derive(clap::Subcommand)]
 enum CliCommands {
     Split {
-        full_sprites_directory: std::path::PathBuf,
-        split_sprites_directory: std::path::PathBuf,
+        source_directory: std::path::PathBuf,
+        object_name: String,
+        #[arg(short, long)]
+        variant: Option<String>,
         object_dimension_x: i32,
         object_dimension_y: i32,
         frame_names: Vec<String>,
@@ -48,15 +50,17 @@ fn main() -> anyhow::Result<()> {
 
     match &cli.command {
         CliCommands::Split {
-            full_sprites_directory,
-            split_sprites_directory,
+            source_directory,
+            object_name,
+            variant,
             object_dimension_x,
             object_dimension_y,
             frame_names,
         } => {
             splitter::split(
-                full_sprites_directory,
-                split_sprites_directory,
+                source_directory,
+                object_name,
+                variant.as_deref(),
                 splitter::ObjectDimensions {
                     x: *object_dimension_x,
                     y: *object_dimension_y,
