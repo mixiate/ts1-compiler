@@ -114,6 +114,18 @@ impl Histogram {
             .collect();
         let palette = {
             let mut palette: Vec<[u8; 3]> = palette_set.into_iter().collect();
+
+            let mut histogram_colors = histogram_colors.clone();
+            histogram_colors.sort_by(|a, b| a.count.cmp(&b.count).reverse());
+            while palette.len() < usize::from(palt::PALT_COLOR_ENTRY_COUNT) - 1 {
+                for entry in &histogram_colors {
+                    if !palette.iter().any(|x| x[0] == entry.color.r && x[1] == entry.color.g && x[2] == entry.color.b)
+                    {
+                        palette.push([entry.color.r, entry.color.g, entry.color.b]);
+                        break;
+                    }
+                }
+            }
             while palette.len() < usize::from(palt::PALT_COLOR_ENTRY_COUNT) - 1 {
                 palette.push([0, 0, 0]);
             }
