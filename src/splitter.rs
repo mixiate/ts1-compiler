@@ -4,6 +4,9 @@ use crate::sprite;
 
 use anyhow::Context;
 
+const MIN_OBJECT_DIMENSION: i32 = 1;
+const MAX_OBJECT_DIMENSION: i32 = 32;
+
 #[derive(Copy, Clone)]
 pub struct ObjectDimensions {
     pub x: i32,
@@ -329,10 +332,22 @@ pub fn split(
     object_dimensions: ObjectDimensions,
     frame_names: &[String],
 ) -> anyhow::Result<()> {
-    anyhow::ensure!(object_dimensions.x > 0, "Object dimension x must be over 0");
-    anyhow::ensure!(object_dimensions.x <= 32, "Object dimension x must be 32 or under");
-    anyhow::ensure!(object_dimensions.y > 0, "Object dimension y must be over 0");
-    anyhow::ensure!(object_dimensions.y <= 32, "Object dimension y must be 32 or under");
+    anyhow::ensure!(
+        object_dimensions.x >= MIN_OBJECT_DIMENSION,
+        format!("Object dimension x must be at least {}", MIN_OBJECT_DIMENSION)
+    );
+    anyhow::ensure!(
+        object_dimensions.y >= MIN_OBJECT_DIMENSION,
+        format!("Object dimension y must be at least {}", MIN_OBJECT_DIMENSION)
+    );
+    anyhow::ensure!(
+        object_dimensions.x <= MAX_OBJECT_DIMENSION,
+        format!("Object dimension x must be {} or under", MAX_OBJECT_DIMENSION)
+    );
+    anyhow::ensure!(
+        object_dimensions.y <= MAX_OBJECT_DIMENSION,
+        format!("Object dimension y must be {} or under", MAX_OBJECT_DIMENSION)
+    );
 
     let depth_planes = DepthPlanes {
         far_large: image::load_from_memory(include_bytes!("../res/depth plane far large.exr")).unwrap().to_rgb32f(),
@@ -389,6 +404,16 @@ pub fn split(
             histogram.add_colors(&dithered_color_sprite, &alpha_sprite);
 
             sprites.push((frame_name, rotation, color_sprite, alpha_sprite, dithered_color_sprite));
+        }
+
+        for y in 0..MAX_OBJECT_DIMENSION {
+            for x in 0..MAX_OBJECT_DIMENSION {
+                let split_sprite_frame_directory = split_sprites_directory.join(format!("{frame_name} {x}_{y}"));
+                if split_sprite_frame_directory.is_dir() {
+                    std::fs::remove_dir_all(&split_sprite_frame_directory)
+                        .with_context(|| format!("Failed to remove {}", split_sprite_frame_directory.display()))?;
+                }
+            }
         }
     }
 
@@ -454,12 +479,48 @@ pub fn split(
         )?;
     }
 
+    for y in 0..object_dimensions.y {
+        for x in 0..object_dimensions.x {
+            for frame_name in frame_names {
+                let split_sprite_frame_directory = split_sprites_directory.join(format!("{frame_name} {x}_{y}"));
+                if is_tile_empty(&split_sprite_frame_directory)? {
+                    std::fs::remove_dir_all(&split_sprite_frame_directory)
+                        .with_context(|| format!("Failed to remove {}", split_sprite_frame_directory.display()))?;
+                }
+            }
+        }
+    }
+
     if clipped_sprites_directory.is_dir() {
         remove_empty_directories(&clipped_sprites_directory)
             .with_context(|| format!("Failed to remove {}", clipped_sprites_directory.display()))?;
     }
 
     Ok(())
+}
+
+fn is_tile_empty(split_sprite_frame_tile_directory: &std::path::Path) -> anyhow::Result<bool> {
+    let rotations = [
+        sprite::Rotation::NorthWest,
+        sprite::Rotation::NorthEast,
+        sprite::Rotation::SouthEast,
+        sprite::Rotation::SouthWest,
+    ];
+    let zoom_levels = [sprite::ZoomLevel::Zero, sprite::ZoomLevel::One, sprite::ZoomLevel::Two];
+    for rotation in rotations {
+        for zoom_level in zoom_levels {
+            let split_sprite_a_file_name = zoom_level.to_string() + "_" + &rotation.to_string() + "_a.bmp";
+            let split_sprite_a_file_path = split_sprite_frame_tile_directory.join(&split_sprite_a_file_name);
+            let split_sprite_a = image::open(&split_sprite_a_file_path)
+                .with_context(|| error::file_read_error(&split_sprite_a_file_path))?
+                .to_luma8();
+            if split_sprite_a.pixels().any(|x| x[0] != 0) {
+                return Ok(false);
+            }
+        }
+    }
+
+    Ok(true)
 }
 
 fn write_clipped_sprite(
