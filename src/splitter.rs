@@ -24,8 +24,7 @@ fn split_sprite(
     zoom_level: sprite::ZoomLevel,
     full_sprite_p: &image::GrayImage,
     full_sprite_a: &image::Rgb32FImage,
-    depth_plane_far: &image::Rgb32FImage,
-    depth_plane_near: &image::Rgb32FImage,
+    depth_planes: &DepthPlanesView,
     palette: &[[u8; 3]],
     transparent_color_index: u8,
 ) -> anyhow::Result<()> {
@@ -59,9 +58,9 @@ fn split_sprite(
 
     let transmogrified_rotation = rotation.transmogrify();
 
-    for y in 0..object_dimensions.y {
-        for x in 0..object_dimensions.x {
-            let split_sprite_frame_directory = split_sprites_directory.join(format!("{frame_name} {x}_{y}"));
+    for tile_y in 0..object_dimensions.y {
+        for tile_x in 0..object_dimensions.x {
+            let split_sprite_frame_directory = split_sprites_directory.join(format!("{frame_name} {tile_x}_{tile_y}"));
 
             let transmogrified_rotation_name = transmogrified_rotation.to_string();
             let split_sprite_p_file_name = zoom_level.to_string() + "_" + &transmogrified_rotation_name + "_p.bmp";
@@ -85,10 +84,10 @@ fn split_sprite(
                 let x_offset_sw = -(object_dimensions.y - object_dimensions.x) * (tile_width / 4);
                 let y_offset_sw = -extra_tiles * (tile_height / 4);
 
-                let x_offset_x = x * (tile_width / 2);
-                let x_offset_y = y * (tile_width / 2);
-                let y_offset_x = x * (tile_height / 2);
-                let y_offset_y = y * (tile_height / 2);
+                let x_offset_x = tile_x * (tile_width / 2);
+                let x_offset_y = tile_y * (tile_width / 2);
+                let y_offset_x = tile_x * (tile_height / 2);
+                let y_offset_y = tile_y * (tile_height / 2);
 
                 match rotation {
                     sprite::Rotation::NorthWest => (
@@ -117,7 +116,7 @@ fn split_sprite(
             const TILE_DEPTH_FULL_SPAN: f64 = 3.2; // why?
 
             const DEPTH_BOUND_NEAR: f64 = 1.0;
-            const DEPTH_BOUND_FAR: f64 = 100.0;
+            const DEPTH_BOUND_FAR: f64 = 10000.0;
 
             let tile_depth_offset = -(y_offset as f64 / (tile_height as f64 / 2.0)) * TILE_DEPTH;
 
@@ -145,17 +144,46 @@ fn split_sprite(
             let mut split_sprite_z = image::GrayImage::new(split_sprite_width, split_sprite_height);
             let mut split_sprite_a = image::GrayImage::new(split_sprite_width, split_sprite_height);
 
+            let (rotated_tile_x, rotated_tile_y) = match rotation {
+                sprite::Rotation::NorthWest => (tile_x, tile_y),
+                sprite::Rotation::NorthEast => (object_dimensions.y - 1 - tile_y, tile_x),
+                sprite::Rotation::SouthEast => (object_dimensions.x - 1 - tile_x, object_dimensions.y - 1 - tile_y),
+                sprite::Rotation::SouthWest => (tile_y, object_dimensions.x - 1 - tile_x),
+            };
+            let rotated_object_dimensions = match rotation {
+                sprite::Rotation::NorthWest | sprite::Rotation::SouthEast => ObjectDimensions {
+                    x: object_dimensions.x,
+                    y: object_dimensions.y,
+                },
+                sprite::Rotation::NorthEast | sprite::Rotation::SouthWest => ObjectDimensions {
+                    x: object_dimensions.y,
+                    y: object_dimensions.x,
+                },
+            };
+
             for x in 0..split_sprite_width {
                 for y in 0..split_sprite_height {
                     let alpha = quantizer::posterize_normalized(full_sprite_a.get_pixel(x, y)[0], 3);
 
-                    let (near_plane_depth, far_plane_depth) = if object_dimensions.x == 1 && object_dimensions.y == 1 {
-                        (DEPTH_BOUND_NEAR, DEPTH_BOUND_FAR)
+                    let left_far_plane_depth = if rotated_tile_x > 0 {
+                        depth_planes.left_far.get_pixel(x, y)[0] as f64 + tile_depth_offset
                     } else {
-                        (
-                            depth_plane_near.get_pixel(x, y)[0] as f64 + tile_depth_offset,
-                            depth_plane_far.get_pixel(x, y)[0] as f64 + tile_depth_offset,
-                        )
+                        DEPTH_BOUND_FAR
+                    };
+                    let left_near_plane_depth = if rotated_tile_y > 0 {
+                        depth_planes.left_near.get_pixel(x, y)[0] as f64 + tile_depth_offset
+                    } else {
+                        DEPTH_BOUND_NEAR
+                    };
+                    let right_far_plane_depth = if rotated_tile_y < rotated_object_dimensions.y - 1 {
+                        depth_planes.right_far.get_pixel(x, y)[0] as f64 + tile_depth_offset
+                    } else {
+                        DEPTH_BOUND_FAR
+                    };
+                    let right_near_plane_depth = if rotated_tile_x < rotated_object_dimensions.x - 1 {
+                        depth_planes.right_near.get_pixel(x, y)[0] as f64 + tile_depth_offset
+                    } else {
+                        DEPTH_BOUND_NEAR
                     };
 
                     let depth = full_sprite_z.get_pixel(x, y)[0] as f64;
@@ -171,7 +199,12 @@ fn split_sprite(
                         }
                     };
 
-                    if alpha > 0.0 && depth >= near_plane_depth && depth <= far_plane_depth {
+                    if alpha > 0.0
+                        && depth >= left_near_plane_depth
+                        && depth <= left_far_plane_depth
+                        && depth >= right_near_plane_depth
+                        && depth <= right_far_plane_depth
+                    {
                         split_sprite_p.put_pixel(x, y, full_sprite_p.get_pixel(x, y));
 
                         split_sprite_a.put_pixel(x, y, image::Luma([(alpha * 255.0) as u8]));
@@ -249,12 +282,95 @@ fn split_sprite(
 }
 
 struct DepthPlanes {
-    far_large: image::Rgb32FImage,
-    far_medium: image::Rgb32FImage,
-    far_small: image::Rgb32FImage,
-    near_large: image::Rgb32FImage,
-    near_medium: image::Rgb32FImage,
-    near_small: image::Rgb32FImage,
+    left_far_large: image::Rgb32FImage,
+    left_far_medium: image::Rgb32FImage,
+    left_far_small: image::Rgb32FImage,
+    left_near_large: image::Rgb32FImage,
+    left_near_medium: image::Rgb32FImage,
+    left_near_small: image::Rgb32FImage,
+    right_far_large: image::Rgb32FImage,
+    right_far_medium: image::Rgb32FImage,
+    right_far_small: image::Rgb32FImage,
+    right_near_large: image::Rgb32FImage,
+    right_near_medium: image::Rgb32FImage,
+    right_near_small: image::Rgb32FImage,
+}
+
+struct DepthPlanesView<'a> {
+    left_far: &'a image::Rgb32FImage,
+    left_near: &'a image::Rgb32FImage,
+    right_far: &'a image::Rgb32FImage,
+    right_near: &'a image::Rgb32FImage,
+}
+
+impl DepthPlanes {
+    fn new() -> DepthPlanes {
+        DepthPlanes {
+            left_far_large: image::load_from_memory(include_bytes!("../res/depth plane left far large.exr"))
+                .unwrap()
+                .to_rgb32f(),
+            left_far_medium: image::load_from_memory(include_bytes!("../res/depth plane left far medium.exr"))
+                .unwrap()
+                .to_rgb32f(),
+            left_far_small: image::load_from_memory(include_bytes!("../res/depth plane left far small.exr"))
+                .unwrap()
+                .to_rgb32f(),
+            left_near_large: image::load_from_memory(include_bytes!("../res/depth plane left near large.exr"))
+                .unwrap()
+                .to_rgb32f(),
+            left_near_medium: image::load_from_memory(include_bytes!("../res/depth plane left near medium.exr"))
+                .unwrap()
+                .to_rgb32f(),
+            left_near_small: image::load_from_memory(include_bytes!("../res/depth plane left near small.exr"))
+                .unwrap()
+                .to_rgb32f(),
+            right_far_large: image::load_from_memory(include_bytes!("../res/depth plane right far large.exr"))
+                .unwrap()
+                .to_rgb32f(),
+            right_far_medium: image::load_from_memory(include_bytes!("../res/depth plane right far medium.exr"))
+                .unwrap()
+                .to_rgb32f(),
+            right_far_small: image::load_from_memory(include_bytes!("../res/depth plane right far small.exr"))
+                .unwrap()
+                .to_rgb32f(),
+            right_near_large: image::load_from_memory(include_bytes!("../res/depth plane right near large.exr"))
+                .unwrap()
+                .to_rgb32f(),
+            right_near_medium: image::load_from_memory(include_bytes!("../res/depth plane right near medium.exr"))
+                .unwrap()
+                .to_rgb32f(),
+            right_near_small: image::load_from_memory(include_bytes!("../res/depth plane right near small.exr"))
+                .unwrap()
+                .to_rgb32f(),
+        }
+    }
+
+    fn large(&self) -> DepthPlanesView {
+        DepthPlanesView {
+            left_far: &self.left_far_large,
+            left_near: &self.left_near_large,
+            right_far: &self.right_far_large,
+            right_near: &self.right_near_large,
+        }
+    }
+
+    fn medium(&self) -> DepthPlanesView {
+        DepthPlanesView {
+            left_far: &self.left_far_medium,
+            left_near: &self.left_near_medium,
+            right_far: &self.right_far_medium,
+            right_near: &self.right_near_medium,
+        }
+    }
+
+    fn small(&self) -> DepthPlanesView {
+        DepthPlanesView {
+            left_far: &self.left_far_small,
+            left_near: &self.left_near_small,
+            right_far: &self.right_far_small,
+            right_near: &self.right_near_small,
+        }
+    }
 }
 
 fn srgb_to_linear(srgb: u8) -> f32 {
@@ -349,14 +465,7 @@ pub fn split(
         format!("Object dimension y must be {} or under", MAX_OBJECT_DIMENSION)
     );
 
-    let depth_planes = DepthPlanes {
-        far_large: image::load_from_memory(include_bytes!("../res/depth plane far large.exr")).unwrap().to_rgb32f(),
-        far_medium: image::load_from_memory(include_bytes!("../res/depth plane far medium.exr")).unwrap().to_rgb32f(),
-        far_small: image::load_from_memory(include_bytes!("../res/depth plane far small.exr")).unwrap().to_rgb32f(),
-        near_large: image::load_from_memory(include_bytes!("../res/depth plane near large.exr")).unwrap().to_rgb32f(),
-        near_medium: image::load_from_memory(include_bytes!("../res/depth plane near medium.exr")).unwrap().to_rgb32f(),
-        near_small: image::load_from_memory(include_bytes!("../res/depth plane near small.exr")).unwrap().to_rgb32f(),
-    };
+    let depth_planes = DepthPlanes::new();
 
     let object_name = if let Some(variant) = variant {
         format!("{} - {}", object_name, variant)
@@ -432,8 +541,7 @@ pub fn split(
             sprite::ZoomLevel::Zero,
             &quantizer.quantize(&dithered_color_sprite, &alpha_sprite),
             &alpha_sprite,
-            &depth_planes.far_large,
-            &depth_planes.near_large,
+            &depth_planes.large(),
             &quantizer.palette,
             quantizer.transparent_color_index,
         )?;
@@ -452,8 +560,7 @@ pub fn split(
             sprite::ZoomLevel::One,
             &quantizer.quantize(&dithered_color_sprite, &alpha_sprite),
             &alpha_sprite,
-            &depth_planes.far_medium,
-            &depth_planes.near_medium,
+            &depth_planes.medium(),
             &quantizer.palette,
             quantizer.transparent_color_index,
         )?;
@@ -472,8 +579,7 @@ pub fn split(
             sprite::ZoomLevel::Two,
             &quantizer.quantize(&dithered_color_sprite, &alpha_sprite),
             &alpha_sprite,
-            &depth_planes.far_small,
-            &depth_planes.near_small,
+            &depth_planes.small(),
             &quantizer.palette,
             quantizer.transparent_color_index,
         )?;
@@ -483,6 +589,9 @@ pub fn split(
         for x in 0..object_dimensions.x {
             for frame_name in frame_names {
                 let split_sprite_frame_directory = split_sprites_directory.join(format!("{frame_name} {x}_{y}"));
+                if !split_sprite_frame_directory.is_dir() {
+                    continue;
+                }
                 if is_tile_empty(&split_sprite_frame_directory)? {
                     std::fs::remove_dir_all(&split_sprite_frame_directory)
                         .with_context(|| format!("Failed to remove {}", split_sprite_frame_directory.display()))?;
@@ -511,6 +620,9 @@ fn is_tile_empty(split_sprite_frame_tile_directory: &std::path::Path) -> anyhow:
         for zoom_level in zoom_levels {
             let split_sprite_a_file_name = zoom_level.to_string() + "_" + &rotation.to_string() + "_a.bmp";
             let split_sprite_a_file_path = split_sprite_frame_tile_directory.join(&split_sprite_a_file_name);
+            if !split_sprite_a_file_path.is_file() {
+                continue;
+            }
             let split_sprite_a = image::open(&split_sprite_a_file_path)
                 .with_context(|| error::file_read_error(&split_sprite_a_file_path))?
                 .to_luma8();
