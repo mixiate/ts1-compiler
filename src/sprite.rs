@@ -1,4 +1,5 @@
 use crate::error;
+use crate::iff;
 
 use anyhow::Context;
 
@@ -79,6 +80,7 @@ pub struct SpriteOffsets {
 pub struct SpriteImageDescription {
     pub bounds: SpriteBounds,
     pub offsets: SpriteOffsets,
+    pub palette_id: iff::IffChunkId,
     pub transparent_color_index: u8,
 }
 
@@ -130,6 +132,7 @@ pub fn write_sprite_image_description_file(
 pub fn calculate_sprite_image_description(
     alpha_sprite: &image::GrayImage,
     zoom_level: ZoomLevel,
+    palette_id: iff::IffChunkId,
     transparent_color_index: u8,
 ) -> SpriteImageDescription {
     let bounds_left = {
@@ -205,6 +208,7 @@ pub fn calculate_sprite_image_description(
             y: offset_y,
             x_flipped: offset_x_flipped,
         },
+        palette_id,
         transparent_color_index,
     }
 }

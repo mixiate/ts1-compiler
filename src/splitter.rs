@@ -1,4 +1,5 @@
 use crate::error;
+use crate::iff;
 use crate::quantizer;
 use crate::sprite;
 
@@ -7,10 +8,23 @@ use anyhow::Context;
 const MIN_OBJECT_DIMENSION: i32 = 1;
 const MAX_OBJECT_DIMENSION: i32 = 32;
 
-#[derive(Copy, Clone)]
-pub struct ObjectDimensions {
-    pub x: i32,
-    pub y: i32,
+#[derive(Copy, Clone, serde::Deserialize, serde::Serialize)]
+struct ObjectDimensions {
+    x: i32,
+    y: i32,
+}
+
+#[derive(Clone, serde::Deserialize, serde::Serialize)]
+struct FrameDescription {
+    name: String,
+    sprite_id: iff::IffChunkId,
+    palette_id: iff::IffChunkId,
+}
+
+#[derive(Clone, serde::Deserialize, serde::Serialize)]
+struct ObjectDescription {
+    dimensions: ObjectDimensions,
+    frames: Vec<FrameDescription>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -25,6 +39,7 @@ fn split_sprite(
     full_sprite_a: &image::Rgb32FImage,
     depth_planes: &DepthPlanesView,
     palette: &[[u8; 3]],
+    palette_id: iff::IffChunkId,
     transparent_color_index: u8,
 ) -> anyhow::Result<()> {
     let extra_tiles = (object_dimensions.x - 1) + (object_dimensions.y - 1);
@@ -258,8 +273,12 @@ fn split_sprite(
                 .save(&split_sprite_a_file_path)
                 .with_context(|| error::file_write_error(&split_sprite_a_file_path))?;
 
-            let sprite_image_description =
-                sprite::calculate_sprite_image_description(&split_sprite_a, zoom_level, transparent_color_index);
+            let sprite_image_description = sprite::calculate_sprite_image_description(
+                &split_sprite_a,
+                zoom_level,
+                palette_id,
+                transparent_color_index,
+            );
             sprite::write_sprite_image_description_file(
                 &sprite_image_description,
                 &split_sprite_frame_directory,
@@ -432,30 +451,68 @@ fn downsize_alpha_sprite(alpha: &image::Rgb32FImage) -> image::Rgb32FImage {
     downsized_alpha
 }
 
-pub fn split(
+pub fn split(source_directory: &std::path::Path, object_name: &str, variant: Option<&str>) -> anyhow::Result<()> {
+    let object_description = {
+        let object_description_file_name = object_name.to_owned() + " - object description";
+        let object_description_file_path = source_directory.join(object_description_file_name).with_extension("json");
+        let json_string = std::fs::read_to_string(&object_description_file_path)
+            .with_context(|| error::file_read_error(&object_description_file_path))?;
+
+        serde_json::from_str::<ObjectDescription>(&json_string).with_context(|| {
+            format!(
+                "Failed to deserialize json file {}",
+                object_description_file_path.display()
+            )
+        })?
+    };
+
+    anyhow::ensure!(
+        object_description.dimensions.x >= MIN_OBJECT_DIMENSION,
+        format!("Object dimension x must be at least {}", MIN_OBJECT_DIMENSION)
+    );
+    anyhow::ensure!(
+        object_description.dimensions.y >= MIN_OBJECT_DIMENSION,
+        format!("Object dimension y must be at least {}", MIN_OBJECT_DIMENSION)
+    );
+    anyhow::ensure!(
+        object_description.dimensions.x <= MAX_OBJECT_DIMENSION,
+        format!("Object dimension x must be {} or under", MAX_OBJECT_DIMENSION)
+    );
+    anyhow::ensure!(
+        object_description.dimensions.y <= MAX_OBJECT_DIMENSION,
+        format!("Object dimension y must be {} or under", MAX_OBJECT_DIMENSION)
+    );
+
+    let mut frame_palette_map = std::collections::HashMap::new();
+    for frame_description in &object_description.frames {
+        frame_palette_map
+            .entry(frame_description.palette_id)
+            .or_insert_with(Vec::new)
+            .push(frame_description.name.as_str());
+    }
+
+    for frame_names in frame_palette_map.values() {
+        split_palette(
+            source_directory,
+            object_name,
+            variant,
+            object_description.dimensions,
+            frame_names,
+            object_description.frames[0].palette_id,
+        )?;
+    }
+
+    Ok(())
+}
+
+fn split_palette(
     source_directory: &std::path::Path,
     object_name: &str,
     variant: Option<&str>,
     object_dimensions: ObjectDimensions,
-    frame_names: &[String],
+    frame_names: &[&str],
+    palette_id: iff::IffChunkId,
 ) -> anyhow::Result<()> {
-    anyhow::ensure!(
-        object_dimensions.x >= MIN_OBJECT_DIMENSION,
-        format!("Object dimension x must be at least {}", MIN_OBJECT_DIMENSION)
-    );
-    anyhow::ensure!(
-        object_dimensions.y >= MIN_OBJECT_DIMENSION,
-        format!("Object dimension y must be at least {}", MIN_OBJECT_DIMENSION)
-    );
-    anyhow::ensure!(
-        object_dimensions.x <= MAX_OBJECT_DIMENSION,
-        format!("Object dimension x must be {} or under", MAX_OBJECT_DIMENSION)
-    );
-    anyhow::ensure!(
-        object_dimensions.y <= MAX_OBJECT_DIMENSION,
-        format!("Object dimension y must be {} or under", MAX_OBJECT_DIMENSION)
-    );
-
     let depth_planes = DepthPlanes::new();
 
     let object_name = if let Some(variant) = variant {
@@ -463,8 +520,8 @@ pub fn split(
     } else {
         object_name.to_owned()
     };
-    let full_sprites_directory = source_directory.join(format!("{} - Full Sprites", object_name));
-    let split_sprites_directory = source_directory.join(format!("{} - Sprites", object_name));
+    let full_sprites_directory = source_directory.join(format!("{} - full sprites", object_name));
+    let split_sprites_directory = source_directory.join(format!("{} - sprites", object_name));
 
     let mut sprites = Vec::new();
 
@@ -532,6 +589,7 @@ pub fn split(
             &alpha_sprite,
             &depth_planes.large(),
             &quantizer.palette,
+            palette_id,
             quantizer.transparent_color_index,
         )?;
 
@@ -550,6 +608,7 @@ pub fn split(
             &alpha_sprite,
             &depth_planes.medium(),
             &quantizer.palette,
+            palette_id,
             quantizer.transparent_color_index,
         )?;
 
@@ -568,6 +627,7 @@ pub fn split(
             &alpha_sprite,
             &depth_planes.small(),
             &quantizer.palette,
+            palette_id,
             quantizer.transparent_color_index,
         )?;
     }

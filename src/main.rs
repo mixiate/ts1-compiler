@@ -26,9 +26,6 @@ enum CliCommands {
         object_name: String,
         #[arg(short, long)]
         variant: Option<String>,
-        object_dimension_x: i32,
-        object_dimension_y: i32,
-        frame_names: Vec<String>,
     },
     Compile {
         xml_file_path: std::path::PathBuf,
@@ -53,20 +50,8 @@ fn main() -> anyhow::Result<()> {
             source_directory,
             object_name,
             variant,
-            object_dimension_x,
-            object_dimension_y,
-            frame_names,
         } => {
-            splitter::split(
-                source_directory,
-                object_name,
-                variant.as_deref(),
-                splitter::ObjectDimensions {
-                    x: *object_dimension_x,
-                    y: *object_dimension_y,
-                },
-                frame_names,
-            )?;
+            splitter::split(source_directory, object_name, variant.as_deref())?;
         }
         CliCommands::Compile { xml_file_path } => {
             compiler::compile(xml_file_path)?;

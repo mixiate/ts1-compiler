@@ -138,11 +138,14 @@ impl IffDescription {
                         sprite::calculate_sprite_image_description(
                             &sprite_image,
                             frame.zoom_level,
+                            sprite.palette_chunk_id,
                             frame.transparent_color_index,
                         )
                     }
                 };
 
+                sprite.palette_chunk_id = sprite_image_description.palette_id;
+                frame.palette_chunk_id = sprite_image_description.palette_id;
                 frame.transparent_color_index = sprite_image_description.transparent_color_index;
 
                 frame.bounds_left = sprite_image_description.bounds.left;
