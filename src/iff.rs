@@ -26,7 +26,6 @@ impl IffChunkId {
 
 #[derive(Clone, Debug, binrw::BinRead, binrw::BinWrite)]
 #[brw(big)]
-#[brw(assert(matches!(flags, 0x00 | 0x10)))]
 #[brw(assert(label.iter().any(|x|*x == b'\0')))]
 pub struct IffChunkHeader {
     chunk_type: [u8; 4],
