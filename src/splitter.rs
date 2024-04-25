@@ -488,16 +488,16 @@ pub fn split(source_directory: &std::path::Path, object_name: &str, variant: Opt
         frame_palette_map
             .entry(frame_description.palette_id)
             .or_insert_with(Vec::new)
-            .push(frame_description.name.as_str());
+            .push((frame_description.name.as_str(), frame_description.palette_id));
     }
 
-    for frame_names in frame_palette_map.values() {
+    for frame_descriptions in frame_palette_map.values() {
         split_palette(
             source_directory,
             object_name,
             variant,
             object_description.dimensions,
-            frame_names,
+            frame_descriptions,
             object_description.frames[0].palette_id,
         )?;
     }
@@ -510,7 +510,7 @@ fn split_palette(
     object_name: &str,
     variant: Option<&str>,
     object_dimensions: ObjectDimensions,
-    frame_names: &[&str],
+    frame_descriptions: &[(&str, iff::IffChunkId)],
     palette_id: iff::IffChunkId,
 ) -> anyhow::Result<()> {
     let depth_planes = DepthPlanes::new();
@@ -527,7 +527,7 @@ fn split_palette(
 
     let mut histogram = quantizer::Histogram::new();
 
-    for frame_name in frame_names {
+    for (frame_name, _) in frame_descriptions {
         let rotations = [
             sprite::Rotation::NorthWest,
             sprite::Rotation::NorthEast,
@@ -632,9 +632,9 @@ fn split_palette(
         )?;
     }
 
-    for y in 0..object_dimensions.y {
-        for x in 0..object_dimensions.x {
-            for frame_name in frame_names {
+    for (frame_name, mut sprite_id) in frame_descriptions {
+        for y in 0..object_dimensions.y {
+            for x in 0..object_dimensions.x {
                 let split_sprite_frame_directory = split_sprites_directory.join(format!("{frame_name} {x}_{y}"));
                 if !split_sprite_frame_directory.is_dir() {
                     continue;
@@ -642,7 +642,16 @@ fn split_palette(
                 if is_tile_empty(&split_sprite_frame_directory)? {
                     std::fs::remove_dir_all(&split_sprite_frame_directory)
                         .with_context(|| format!("Failed to remove {}", split_sprite_frame_directory.display()))?;
+                } else {
+                    let tile_sprite_id_file_path =
+                        split_sprite_frame_directory.join("sprite id").with_extension("json");
+                    let json_string = serde_json::to_string_pretty(&sprite_id).with_context(|| {
+                        format!("Failed to serialize json file {}", tile_sprite_id_file_path.display())
+                    })?;
+                    std::fs::write(&tile_sprite_id_file_path, json_string)
+                        .with_context(|| error::file_write_error(&tile_sprite_id_file_path))?;
                 }
+                sprite_id.advance();
             }
         }
     }
