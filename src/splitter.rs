@@ -488,7 +488,7 @@ pub fn split(source_directory: &std::path::Path, object_name: &str, variant: Opt
         frame_palette_map
             .entry(frame_description.palette_id)
             .or_insert_with(Vec::new)
-            .push((frame_description.name.as_str(), frame_description.palette_id));
+            .push((frame_description.name.as_str(), frame_description.sprite_id));
     }
 
     for frame_descriptions in frame_palette_map.values() {

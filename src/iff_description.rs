@@ -92,8 +92,8 @@ pub struct Sprites {
 
 impl IffDescription {
     pub fn update_sprite_variants(&mut self, variant_original: &str, variant_new: &str) -> anyhow::Result<()> {
-        let variant_original = " - ".to_owned() + variant_original + " - Sprites";
-        let variant_new = " - ".to_owned() + variant_new + " - Sprites";
+        let variant_original = " - ".to_owned() + variant_original + " - sprites";
+        let variant_new = " - ".to_owned() + variant_new + " - sprites";
 
         for sprite in &mut self.sprites.sprites {
             if sprite.sprite_type == spr::SpriteType::Spr1 {
@@ -125,23 +125,24 @@ impl IffDescription {
                     )
                 })?;
 
-                let sprite_image_description = match sprite::read_sprite_image_description_file(
+                let sprite_description_file_path = sprite::get_sprite_image_description_file_path(
                     sprite_frame_directory,
                     frame.zoom_level,
                     frame.rotation,
-                ) {
-                    Ok(sprite_image_description) => sprite_image_description,
-                    Err(_) => {
-                        let sprite_image = image::open(&alpha_sprite_file_path)
-                            .with_context(|| error::file_read_error(&alpha_sprite_file_path))?
-                            .to_luma8();
-                        sprite::calculate_sprite_image_description(
-                            &sprite_image,
-                            frame.zoom_level,
-                            sprite.palette_chunk_id,
-                            frame.transparent_color_index,
-                        )
-                    }
+                );
+
+                let sprite_image_description = if sprite_description_file_path.is_file() {
+                    sprite::read_sprite_image_description_file(&sprite_description_file_path)?
+                } else {
+                    let sprite_image = image::open(&alpha_sprite_file_path)
+                        .with_context(|| error::file_read_error(&alpha_sprite_file_path))?
+                        .to_luma8();
+                    sprite::calculate_sprite_image_description(
+                        &sprite_image,
+                        frame.zoom_level,
+                        sprite.palette_chunk_id,
+                        frame.transparent_color_index,
+                    )
                 };
 
                 sprite.palette_chunk_id = sprite_image_description.palette_id;

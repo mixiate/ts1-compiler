@@ -47,6 +47,26 @@ pub struct Sprite {
     pub sprite_frames: Vec<SpriteFrame>,
 }
 
+impl Sprite {
+    pub fn new(
+        chunk_label: &str,
+        chunk_id: iff::IffChunkId,
+        palette_chunk_id: iff::IffChunkId,
+        sprite_frames: Vec<SpriteFrame>,
+    ) -> Sprite {
+        Sprite {
+            chunk_label: chunk_label.to_owned(),
+            chunk_id,
+            sprite_type: SpriteType::Spr2,
+            multi_tile: 0,
+            palette_chunk_id,
+            sprite_frame_count: sprite_frames.len().try_into().unwrap(),
+            is_custom_wall_style: false,
+            sprite_frames,
+        }
+    }
+}
+
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct SpriteFrame {
@@ -77,6 +97,45 @@ pub struct SpriteFrame {
 }
 
 impl SpriteFrame {
+    pub fn new(
+        index: u32,
+        zoom_level: sprite::ZoomLevel,
+        rotation: sprite::Rotation,
+        sprite_image_description: &sprite::SpriteImageDescription,
+        sprite_channel_p_relative_path: &std::path::Path,
+        sprite_channel_z_relative_path: &std::path::Path,
+        sprite_channel_a_relative_path: &std::path::Path,
+    ) -> SpriteFrame {
+        let sprite_channels = vec![
+            SpriteChannel {
+                channel_type: SpriteChannelType::Color,
+                file_path_relative: sprite_channel_p_relative_path.to_str().unwrap().to_owned(),
+            },
+            SpriteChannel {
+                channel_type: SpriteChannelType::Depth,
+                file_path_relative: sprite_channel_z_relative_path.to_str().unwrap().to_owned(),
+            },
+            SpriteChannel {
+                channel_type: SpriteChannelType::Alpha,
+                file_path_relative: sprite_channel_a_relative_path.to_str().unwrap().to_owned(),
+            },
+        ];
+        SpriteFrame {
+            index: SpriteIndex(index),
+            zoom_level,
+            rotation,
+            bounds_left: sprite_image_description.bounds.left,
+            bounds_top: sprite_image_description.bounds.top,
+            bounds_right: sprite_image_description.bounds.right,
+            bounds_bottom: sprite_image_description.bounds.bottom,
+            width: sprite_image_description.width,
+            height: sprite_image_description.height,
+            palette_chunk_id: sprite_image_description.palette_id,
+            transparent_color_index: sprite_image_description.transparent_color_index,
+            sprite_channels,
+        }
+    }
+
     pub fn sprite_channel_file_path_relative(
         &self,
         channel_type: SpriteChannelType,

@@ -11,6 +11,8 @@ mod splitter;
 mod spr;
 mod sprite;
 mod the_sims;
+mod xml;
+mod xml_updater;
 
 #[derive(clap::Parser)]
 #[command(version, about, long_about = None)]
@@ -22,6 +24,12 @@ struct Cli {
 #[derive(clap::Subcommand)]
 enum CliCommands {
     Split {
+        source_directory: std::path::PathBuf,
+        object_name: String,
+        #[arg(short, long)]
+        variant: Option<String>,
+    },
+    UpdateXml {
         source_directory: std::path::PathBuf,
         object_name: String,
         #[arg(short, long)]
@@ -52,6 +60,13 @@ fn main() -> anyhow::Result<()> {
             variant,
         } => {
             splitter::split(source_directory, object_name, variant.as_deref())?;
+        }
+        CliCommands::UpdateXml {
+            source_directory,
+            object_name,
+            variant,
+        } => {
+            xml_updater::update(source_directory, object_name, variant.as_deref())?;
         }
         CliCommands::Compile { xml_file_path } => {
             compiler::compile(xml_file_path)?;

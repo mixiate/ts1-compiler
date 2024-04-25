@@ -78,13 +78,15 @@ pub struct SpriteOffsets {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct SpriteImageDescription {
+    pub width: i16,
+    pub height: i16,
     pub bounds: SpriteBounds,
     pub offsets: SpriteOffsets,
     pub palette_id: iff::IffChunkId,
     pub transparent_color_index: u8,
 }
 
-fn get_sprite_image_description_file_path(
+pub fn get_sprite_image_description_file_path(
     sprite_frame_directory: &std::path::Path,
     zoom_level: ZoomLevel,
     rotation: Rotation,
@@ -94,14 +96,10 @@ fn get_sprite_image_description_file_path(
 }
 
 pub fn read_sprite_image_description_file(
-    sprite_frame_directory: &std::path::Path,
-    zoom_level: ZoomLevel,
-    rotation: Rotation,
+    sprite_image_description_file_path: &std::path::Path,
 ) -> anyhow::Result<SpriteImageDescription> {
-    let sprite_image_description_file_path =
-        get_sprite_image_description_file_path(sprite_frame_directory, zoom_level, rotation);
-    let json_string = std::fs::read_to_string(&sprite_image_description_file_path)
-        .with_context(|| error::file_read_error(&sprite_image_description_file_path))?;
+    let json_string = std::fs::read_to_string(sprite_image_description_file_path)
+        .with_context(|| error::file_read_error(sprite_image_description_file_path))?;
 
     serde_json::from_str::<SpriteImageDescription>(&json_string).with_context(|| {
         format!(
@@ -197,6 +195,8 @@ pub fn calculate_sprite_image_description(
     let offset_x_flipped = 0 - (sprite_center_x - left_bound_flipped);
 
     SpriteImageDescription {
+        width: alpha_sprite.width().try_into().unwrap(),
+        height: alpha_sprite.height().try_into().unwrap(),
         bounds: SpriteBounds {
             left: i16::try_from(bounds_left).unwrap(),
             top: i16::try_from(bounds_top).unwrap(),

@@ -1,6 +1,6 @@
 use crate::iff;
-use crate::iff_description;
 use crate::the_sims;
+use crate::xml;
 
 fn get_iff_file_name_hash(object_name: &str, variant_name: &str) -> String {
     let iff_file_name = format!("{object_name} {variant_name}");
@@ -63,39 +63,10 @@ fn get_formatted_iff_file_path_and_rename_unhashed_iff_file(
     Ok(iff_file_path)
 }
 
-fn read_xml_file(xml_file_path: &std::path::Path) -> anyhow::Result<iff_description::IffDescription> {
-    use anyhow::Context;
-
-    let iff_description = std::fs::read_to_string(xml_file_path)
-        .with_context(|| format!("Failed to read xml file {}", xml_file_path.display()))?;
-    quick_xml::de::from_str::<iff_description::IffDescription>(&iff_description)
-        .with_context(|| format!("Failed to deserialize xml file {}", xml_file_path.display()))
-}
-
-fn save_xml_file(
-    xml_file_path: &std::path::Path,
-    iff_description: &iff_description::IffDescription,
-) -> anyhow::Result<()> {
-    use anyhow::Context;
-
-    let xml_header = include_str!("../res/header.xml");
-
-    let mut buffer = xml_header.to_owned();
-    let mut serializer = quick_xml::se::Serializer::with_root(&mut buffer, Some("objectsexportedfromthesims"))
-        .context("Failed to serialize xml file")?;
-    serializer.indent(' ', 2);
-    use serde::Serialize;
-    iff_description.serialize(serializer).context("Failed to serialize xml file")?;
-
-    std::fs::write(xml_file_path, &buffer)
-        .with_context(|| format!("Failed to write xml to {}", xml_file_path.display()))?;
-    Ok(())
-}
-
 pub fn compile(xml_file_path: &std::path::Path) -> anyhow::Result<()> {
     use anyhow::Context;
 
-    let mut iff_description = read_xml_file(xml_file_path)?;
+    let mut iff_description = xml::read_xml_file(xml_file_path)?;
 
     let source_directory = std::path::PathBuf::from(&xml_file_path);
     let source_directory = source_directory.parent().with_context(|| {
@@ -117,7 +88,7 @@ pub fn compile(xml_file_path: &std::path::Path) -> anyhow::Result<()> {
         &input_iff_file_path,
     )?;
 
-    save_xml_file(xml_file_path, &iff_description)?;
+    xml::save_xml_file(xml_file_path, &iff_description)?;
 
     Ok(())
 }
@@ -131,7 +102,7 @@ pub fn compile_advanced(
 ) -> anyhow::Result<()> {
     let xml_file_path = source_directory.join(object_name).with_extension("xml");
 
-    let mut iff_description = read_xml_file(&xml_file_path)?;
+    let mut iff_description = xml::read_xml_file(&xml_file_path)?;
 
     if let Some((variant_original, variant_new)) = variant_names {
         iff_description.update_sprite_variants(variant_original, variant_new)?;
@@ -163,7 +134,7 @@ pub fn compile_advanced(
     )?;
 
     if variant_original == variant_new {
-        save_xml_file(&xml_file_path, &iff_description)?;
+        xml::save_xml_file(&xml_file_path, &iff_description)?;
     }
     Ok(())
 }
