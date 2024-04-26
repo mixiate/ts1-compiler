@@ -49,6 +49,9 @@ pub fn create_palt_chunks(
     let mut palt_chunks = std::collections::HashMap::new();
 
     for sprite in sprites {
+        if sprite.sprite_type == spr::SpriteType::Spr1 {
+            continue;
+        }
         match palt_chunks.entry(sprite.palette_chunk_id) {
             std::collections::hash_map::Entry::Occupied(_) => (),
             std::collections::hash_map::Entry::Vacant(entry) => {
