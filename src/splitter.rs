@@ -545,6 +545,10 @@ fn split_palette(
     };
     let full_sprites_directory = source_directory.join(format!("{} - full sprites", object_name));
     let split_sprites_directory = source_directory.join(format!("{} - sprites", object_name));
+    if split_sprites_directory.is_dir() {
+        std::fs::remove_dir_all(&split_sprites_directory)
+            .with_context(|| format!("Failed to remove {}", split_sprites_directory.display()))?;
+    }
 
     let mut sprites = Vec::new();
 
@@ -586,15 +590,6 @@ fn split_palette(
             sprites.push((frame_name, rotation, color_sprite, alpha_sprite, dithered_color_sprite));
         }
 
-        for y in 0..MAX_OBJECT_DIMENSION {
-            for x in 0..MAX_OBJECT_DIMENSION {
-                let split_sprite_frame_directory = split_sprites_directory.join(format!("{frame_name} {x}_{y}"));
-                if split_sprite_frame_directory.is_dir() {
-                    std::fs::remove_dir_all(&split_sprite_frame_directory)
-                        .with_context(|| format!("Failed to remove {}", split_sprite_frame_directory.display()))?;
-                }
-            }
-        }
         anyhow::ensure!(
             sprites.len() > sprite_count,
             "Failed to find any sprites to split in frame \"{}\"",
