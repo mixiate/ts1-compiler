@@ -154,6 +154,10 @@ fn split_sprite(
             let mut full_sprite_a =
                 full_sprite_a.sub_image(sub_sprite_x, sub_sprite_y, split_sprite_width, split_sprite_height);
 
+            let mut full_sprite_z_extra = full_sprite_z_extra
+                .as_mut()
+                .map(|x| x.sub_image(sub_sprite_x, sub_sprite_y, split_sprite_width, split_sprite_height));
+
             let mut split_sprite_p = image::GrayImage::new(split_sprite_width, split_sprite_height);
             let mut split_sprite_z = image::GrayImage::new(split_sprite_width, split_sprite_height);
             let mut split_sprite_a = image::GrayImage::new(split_sprite_width, split_sprite_height);
