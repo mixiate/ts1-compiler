@@ -1,6 +1,7 @@
 use crate::error;
 use crate::iff_description;
 use crate::palt;
+use crate::spr;
 
 use anyhow::Context;
 
@@ -244,10 +245,25 @@ pub fn rebuild_iff_file(
         iff.chunks.push(draw_group.to_chunk()?);
     }
 
+    let used_sprite_ids = {
+        let mut used_sprite_ids = std::collections::HashSet::new();
+        for draw_group in &iff_description.draw_groups.draw_groups {
+            for draw_group_item_list in &draw_group.draw_group_item_lists {
+                for draw_group_item in &draw_group_item_list.draw_group_items {
+                    used_sprite_ids.insert(draw_group_item.sprite_chunk_id);
+                }
+            }
+        }
+        used_sprite_ids
+    };
+
     let palt_chunks = palt::create_palt_chunks(source_directory, &iff_description.sprites.sprites)?;
     iff.chunks.extend(palt_chunks);
 
     for sprite in &iff_description.sprites.sprites {
+        if sprite.sprite_type == spr::SpriteType::Spr2 && !used_sprite_ids.contains(&sprite.chunk_id) {
+            continue;
+        }
         iff.chunks.push(sprite.to_chunk(source_directory)?);
     }
 
