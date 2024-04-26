@@ -483,6 +483,29 @@ pub fn split(source_directory: &std::path::Path, object_name: &str, variant: Opt
         format!("Object dimension y must be {} or under", MAX_OBJECT_DIMENSION)
     );
 
+    anyhow::ensure!(
+        !object_description.frames.is_empty(),
+        "Failed to find any frames in object description"
+    );
+
+    let base_sprite_ids: std::collections::HashSet<_> = object_description.frames.iter().map(|x| x.sprite_id).collect();
+    anyhow::ensure!(
+        base_sprite_ids.len() == object_description.frames.len(),
+        "Each frame must have a unique base sprite ID"
+    );
+    if base_sprite_ids.len() > 1 {
+        let minimum_sprite_id_difference = object_description.dimensions.x * object_description.dimensions.y;
+        for ids in base_sprite_ids.iter().collect::<Vec<_>>().windows(2) {
+            anyhow::ensure!(
+                (ids[0].as_i32() - ids[1].as_i32()).abs() >= minimum_sprite_id_difference,
+                format!(
+                    "Each base sprite ID must be at least {} apart",
+                    minimum_sprite_id_difference
+                )
+            );
+        }
+    }
+
     let mut frame_palette_map = std::collections::HashMap::new();
     for frame_description in &object_description.frames {
         frame_palette_map
