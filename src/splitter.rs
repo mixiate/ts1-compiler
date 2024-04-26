@@ -551,6 +551,7 @@ fn split_palette(
     let mut histogram = quantizer::Histogram::new();
 
     for (frame_name, _) in frame_descriptions {
+        let sprite_count = sprites.len();
         let rotations = [
             sprite::Rotation::NorthWest,
             sprite::Rotation::NorthEast,
@@ -594,6 +595,11 @@ fn split_palette(
                 }
             }
         }
+        anyhow::ensure!(
+            sprites.len() > sprite_count,
+            "Failed to find any sprites to split in frame \"{}\"",
+            frame_name
+        );
     }
 
     let mut quantizer = histogram
