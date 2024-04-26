@@ -1,0 +1,23 @@
+name: Rust
+
+on: 
+  push:
+    tags:
+       - "v*.*.*"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build
+      run: cargo build --release --target=i686-pc-windows-msvc
+    - name: Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: target/i686-pc-windows-msvc/release/ts1-compiler.exe
