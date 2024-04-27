@@ -218,6 +218,12 @@ pub fn rebuild_iff_file(
             output_iff_file_path.display()
         )
     );
+    if input_iff_file_path != output_iff_file_path {
+        anyhow::ensure!(
+            input_guids != output_guids,
+            "GUIDs in iff files match. Variant objects must have unique GUIDs"
+        );
+    }
 
     iff.chunks.retain(|x| {
         !matches!(
