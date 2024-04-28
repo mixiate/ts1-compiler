@@ -52,7 +52,7 @@ pub struct IffDescription {
     createsubdirectories: i32,
     #[serde(rename = "@thingstodo")]
     thingstodo: i32,
-    #[serde(rename = "objectdefinitions")]
+    #[serde(rename = "objectdefinitions", deserialize_with = "deserialize_object_definitions")]
     pub object_definitions: ObjectDefinitions,
     #[serde(rename = "slots")]
     pub slots: Slots,
@@ -192,4 +192,20 @@ impl IffDescription {
         }
         Ok(())
     }
+}
+
+fn deserialize_object_definitions<'de, D>(deserializer: D) -> Result<ObjectDefinitions, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize;
+    let object_definitions = ObjectDefinitions::deserialize(deserializer)?;
+
+    let objds = &object_definitions.object_definitions;
+
+    if objds.is_empty() {
+        return Err(serde::de::Error::custom("no object definitions found"));
+    }
+
+    Ok(object_definitions)
 }
