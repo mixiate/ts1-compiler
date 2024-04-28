@@ -1,6 +1,6 @@
 use crate::iff;
+use crate::iff_description;
 use crate::the_sims;
-use crate::xml;
 
 fn get_iff_file_name_hash(object_name: &str, variant_name: &str) -> String {
     let iff_file_name = format!("{object_name} {variant_name}");
@@ -66,7 +66,7 @@ fn get_formatted_iff_file_path_and_rename_unhashed_iff_file(
 pub fn compile(xml_file_path: &std::path::Path) -> anyhow::Result<()> {
     use anyhow::Context;
 
-    let mut iff_description = xml::read_xml_file(xml_file_path)?;
+    let mut iff_description = iff_description::IffDescription::open(xml_file_path)?;
 
     let source_directory = std::path::PathBuf::from(&xml_file_path);
     let source_directory = source_directory.parent().with_context(|| {
@@ -88,9 +88,7 @@ pub fn compile(xml_file_path: &std::path::Path) -> anyhow::Result<()> {
         &input_iff_file_path,
     )?;
 
-    xml::save_xml_file(xml_file_path, &iff_description)?;
-
-    Ok(())
+    iff_description.save(xml_file_path)
 }
 
 pub fn compile_advanced(
@@ -102,7 +100,7 @@ pub fn compile_advanced(
 ) -> anyhow::Result<()> {
     let xml_file_path = source_directory.join(object_name).with_extension("xml");
 
-    let mut iff_description = xml::read_xml_file(&xml_file_path)?;
+    let mut iff_description = iff_description::IffDescription::open(&xml_file_path)?;
 
     if let Some((variant_original, variant_new)) = variant_names {
         iff_description.update_sprite_variants(variant_original, variant_new)?;
@@ -134,7 +132,7 @@ pub fn compile_advanced(
     )?;
 
     if variant_original == variant_new {
-        xml::save_xml_file(&xml_file_path, &iff_description)?;
+        iff_description.save(&xml_file_path)?;
     }
     Ok(())
 }

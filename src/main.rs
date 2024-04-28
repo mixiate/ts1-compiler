@@ -11,7 +11,6 @@ mod splitter;
 mod spr;
 mod sprite;
 mod the_sims;
-mod xml;
 mod xml_updater;
 
 #[derive(clap::Parser)]

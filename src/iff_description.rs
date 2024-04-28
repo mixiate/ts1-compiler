@@ -91,6 +91,28 @@ pub struct Sprites {
 }
 
 impl IffDescription {
+    pub fn open(xml_file_path: &std::path::Path) -> anyhow::Result<IffDescription> {
+        let iff_description = std::fs::read_to_string(xml_file_path)
+            .with_context(|| format!("Failed to read xml file {}", xml_file_path.display()))?;
+        quick_xml::de::from_str::<IffDescription>(&iff_description)
+            .with_context(|| format!("Failed to deserialize xml file {}", xml_file_path.display()))
+    }
+
+    pub fn save(&self, xml_file_path: &std::path::Path) -> anyhow::Result<()> {
+        let xml_header = include_str!("../res/header.xml");
+
+        let mut buffer = xml_header.to_owned();
+        let mut serializer = quick_xml::se::Serializer::with_root(&mut buffer, Some("objectsexportedfromthesims"))
+            .context("Failed to serialize xml file")?;
+        serializer.indent(' ', 2);
+        use serde::Serialize;
+        self.serialize(serializer).context("Failed to serialize xml file")?;
+
+        std::fs::write(xml_file_path, &buffer)
+            .with_context(|| format!("Failed to write xml to {}", xml_file_path.display()))?;
+        Ok(())
+    }
+
     pub fn update_sprite_variants(&mut self, variant_original: &str, variant_new: &str) -> anyhow::Result<()> {
         let variant_original = " - ".to_owned() + variant_original + " - sprites";
         let variant_new = " - ".to_owned() + variant_new + " - sprites";
