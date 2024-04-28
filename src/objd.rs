@@ -10,7 +10,7 @@ pub struct ObjectDefinition {
     #[serde(rename = "@id")]
     pub chunk_id: iff::IffChunkId,
     #[serde(rename = "@version")]
-    pub version: i32,
+    version: Version,
     #[serde(rename = "@initialstacksize")]
     pub initialstacksize: i16,
     #[serde(rename = "@basegraphic")]
@@ -223,7 +223,7 @@ impl ObjectDefinition {
             iff::IffChunkHeader::new(b"OBJD", OBJD_CHUNK_DATA_SIZE, self.chunk_id, &self.chunk_label)?;
         let mut objd_data = Vec::with_capacity(iff::IFF_CHUNK_HEADER_SIZE + OBJD_CHUNK_DATA_SIZE);
 
-        objd_data.extend_from_slice(&self.version.to_le_bytes());
+        objd_data.extend_from_slice(&138i32.to_le_bytes());
         objd_data.extend_from_slice(&self.initialstacksize.to_le_bytes());
         objd_data.extend_from_slice(&self.basegraphic.to_le_bytes());
         objd_data.extend_from_slice(&self.numgraphics.to_le_bytes());
@@ -334,4 +334,11 @@ impl ObjectDefinition {
             data: objd_data,
         })
     }
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+enum Version {
+    #[serde(rename = "138")]
+    V138,
 }
