@@ -2,6 +2,8 @@ use crate::iff;
 use crate::iff_description;
 use crate::the_sims;
 
+use anyhow::Context;
+
 fn get_iff_file_name_hash(object_name: &str, variant_name: &str) -> String {
     let iff_file_name = format!("{object_name} {variant_name}");
     let iff_file_name_elements: Vec<_> = iff_file_name.split(' ').collect();
@@ -28,7 +30,6 @@ fn get_formatted_iff_file_path_and_rename_unhashed_iff_file(
     object_name: &str,
     variant_name: Option<&str>,
 ) -> anyhow::Result<std::path::PathBuf> {
-    use anyhow::Context;
     use formatx::formatx;
 
     let variant_name = variant_name.unwrap_or("");
@@ -64,9 +65,8 @@ fn get_formatted_iff_file_path_and_rename_unhashed_iff_file(
 }
 
 pub fn compile(xml_file_path: &std::path::Path) -> anyhow::Result<()> {
-    use anyhow::Context;
-
-    let mut iff_description = iff_description::IffDescription::open(xml_file_path)?;
+    let mut iff_description = iff_description::IffDescription::open(xml_file_path)
+        .with_context(|| format!("Failed to open xml file {}", xml_file_path.display()))?;
 
     let source_directory = std::path::PathBuf::from(&xml_file_path);
     let source_directory = source_directory.parent().with_context(|| {
@@ -88,7 +88,9 @@ pub fn compile(xml_file_path: &std::path::Path) -> anyhow::Result<()> {
         &input_iff_file_path,
     )?;
 
-    iff_description.save(xml_file_path)
+    iff_description
+        .save(xml_file_path)
+        .with_context(|| format!("Failed to save xml file {}", xml_file_path.display()))
 }
 
 pub fn compile_advanced(
@@ -100,7 +102,8 @@ pub fn compile_advanced(
 ) -> anyhow::Result<()> {
     let xml_file_path = source_directory.join(object_name).with_extension("xml");
 
-    let mut iff_description = iff_description::IffDescription::open(&xml_file_path)?;
+    let mut iff_description = iff_description::IffDescription::open(&xml_file_path)
+        .with_context(|| format!("Failed to open xml file {}", xml_file_path.display()))?;
 
     if let Some((variant_original, variant_new)) = variant_names {
         iff_description.update_sprite_variants(variant_original, variant_new)?;
@@ -132,7 +135,9 @@ pub fn compile_advanced(
     )?;
 
     if variant_original == variant_new {
-        iff_description.save(&xml_file_path)?;
+        iff_description
+            .save(&xml_file_path)
+            .with_context(|| format!("Failed to save xml file {}", xml_file_path.display()))?;
     }
     Ok(())
 }

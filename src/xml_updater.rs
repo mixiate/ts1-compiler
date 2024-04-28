@@ -74,7 +74,8 @@ fn build_sprite_description(
 pub fn update(source_directory: &std::path::Path, object_name: &str, variant: Option<&str>) -> anyhow::Result<()> {
     let xml_file_path = source_directory.join(object_name).with_extension("xml");
 
-    let mut iff_description = iff_description::IffDescription::open(&xml_file_path)?;
+    let mut iff_description = iff_description::IffDescription::open(&xml_file_path)
+        .with_context(|| format!("Failed to open xml file {}", xml_file_path.display()))?;
 
     let mut new_sprites = Vec::new();
 
@@ -100,5 +101,7 @@ pub fn update(source_directory: &std::path::Path, object_name: &str, variant: Op
     iff_description.sprites.sprites.append(&mut new_sprites);
     iff_description.sprites.sprites.sort_by(|a, b| a.chunk_id.as_i16().cmp(&b.chunk_id.as_i16()));
 
-    iff_description.save(&xml_file_path)
+    iff_description
+        .save(&xml_file_path)
+        .with_context(|| format!("Failed to save xml file {}", xml_file_path.display()))
 }

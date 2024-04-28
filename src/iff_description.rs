@@ -92,25 +92,20 @@ pub struct Sprites {
 
 impl IffDescription {
     pub fn open(xml_file_path: &std::path::Path) -> anyhow::Result<IffDescription> {
-        let iff_description = std::fs::read_to_string(xml_file_path)
-            .with_context(|| format!("Failed to read xml file {}", xml_file_path.display()))?;
-        quick_xml::de::from_str::<IffDescription>(&iff_description)
-            .with_context(|| format!("Failed to deserialize xml file {}", xml_file_path.display()))
+        let iff_description = std::fs::read_to_string(xml_file_path)?;
+        Ok(quick_xml::de::from_str::<IffDescription>(&iff_description)?)
     }
 
     pub fn save(&self, xml_file_path: &std::path::Path) -> anyhow::Result<()> {
         let xml_header = include_str!("../res/header.xml");
 
         let mut buffer = xml_header.to_owned();
-        let mut serializer = quick_xml::se::Serializer::with_root(&mut buffer, Some("objectsexportedfromthesims"))
-            .context("Failed to serialize xml file")?;
+        let mut serializer = quick_xml::se::Serializer::with_root(&mut buffer, Some("objectsexportedfromthesims"))?;
         serializer.indent(' ', 2);
         use serde::Serialize;
-        self.serialize(serializer).context("Failed to serialize xml file")?;
+        self.serialize(serializer)?;
 
-        std::fs::write(xml_file_path, &buffer)
-            .with_context(|| format!("Failed to write xml to {}", xml_file_path.display()))?;
-        Ok(())
+        Ok(std::fs::write(xml_file_path, &buffer)?)
     }
 
     pub fn update_sprite_variants(&mut self, variant_original: &str, variant_new: &str) -> anyhow::Result<()> {
