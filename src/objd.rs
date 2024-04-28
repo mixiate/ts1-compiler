@@ -46,7 +46,7 @@ pub struct ObjectDefinition {
     #[serde(rename = "@bodystringsid")]
     pub bodystringsid: i16,
     #[serde(rename = "@slotsid")]
-    pub slotsid: i16,
+    pub slot_chunk_id: iff::IffChunkId,
     #[serde(rename = "@allowintersectiontreeid")]
     pub allowintersectiontreeid: i16,
     #[serde(rename = "@usesfntable")]
@@ -241,7 +241,7 @@ impl ObjectDefinition {
         objd_data.extend_from_slice(&self.portaltreeid.to_le_bytes());
         objd_data.extend_from_slice(&self.price.to_le_bytes());
         objd_data.extend_from_slice(&self.bodystringsid.to_le_bytes());
-        objd_data.extend_from_slice(&self.slotsid.to_le_bytes());
+        objd_data.extend_from_slice(&self.slot_chunk_id.as_i16().to_le_bytes());
         objd_data.extend_from_slice(&self.allowintersectiontreeid.to_le_bytes());
         objd_data.extend_from_slice(&self.usesfntable.to_le_bytes());
         objd_data.extend_from_slice(&self.unused4.to_le_bytes());

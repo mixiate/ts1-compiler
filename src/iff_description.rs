@@ -93,7 +93,25 @@ pub struct Sprites {
 impl IffDescription {
     pub fn open(xml_file_path: &std::path::Path) -> anyhow::Result<IffDescription> {
         let iff_description = std::fs::read_to_string(xml_file_path)?;
-        Ok(quick_xml::de::from_str::<IffDescription>(&iff_description)?)
+        let iff_description = quick_xml::de::from_str::<IffDescription>(&iff_description)?;
+
+        let object_definitions = &iff_description.object_definitions.object_definitions;
+        let slots = &iff_description.slots.slots;
+
+        let slot_ids = slots.iter().map(|slot| slot.chunk_id).collect::<std::collections::HashSet<_>>();
+
+        for object_definition in object_definitions {
+            if object_definition.slot_chunk_id.as_i16() != 0 {
+                anyhow::ensure!(
+                    slot_ids.contains(&object_definition.slot_chunk_id),
+                    "failed to find slot {} used in object definition {}",
+                    object_definition.slot_chunk_id.as_i16(),
+                    object_definition.chunk_label
+                );
+            }
+        }
+
+        Ok(iff_description)
     }
 
     pub fn save(&self, xml_file_path: &std::path::Path) -> anyhow::Result<()> {
