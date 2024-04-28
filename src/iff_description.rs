@@ -359,6 +359,18 @@ where
                 sprite.chunk_label,
             )));
         }
+
+        for (frame, index) in sprite.sprite_frames.iter().zip(0i32..) {
+            if frame.index.as_i32() != index {
+                return Err(serde::de::Error::custom(format!(
+                    "index of {} is incorrect for frame {} of sprite {} {}",
+                    frame.index.as_i32(),
+                    index,
+                    sprite.chunk_id.as_i16(),
+                    sprite.chunk_label,
+                )));
+            }
+        }
     }
 
     Ok(sprites)
