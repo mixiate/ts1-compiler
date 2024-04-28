@@ -207,5 +207,12 @@ where
         return Err(serde::de::Error::custom("no object definitions found"));
     }
 
+    let chunk_ids: std::collections::HashSet<_> = objds.iter().map(|x| x.chunk_id).collect();
+    if chunk_ids.len() != objds.len() {
+        return Err(serde::de::Error::custom(
+            "object definitions contain entries with the same chunk ID",
+        ));
+    }
+
     Ok(object_definitions)
 }
