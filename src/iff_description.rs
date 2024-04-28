@@ -214,5 +214,12 @@ where
         ));
     }
 
+    let guids: std::collections::HashSet<_> = objds.iter().map(|x| x.guid).collect();
+    if guids.len() != objds.len() {
+        return Err(serde::de::Error::custom(
+            "object definitions contain entries with the same GUID",
+        ));
+    }
+
     Ok(object_definitions)
 }
