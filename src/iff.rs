@@ -29,6 +29,14 @@ impl IffChunkId {
     }
 }
 
+impl std::ops::Add<i16> for IffChunkId {
+    type Output = IffChunkId;
+
+    fn add(self, other: i16) -> IffChunkId {
+        IffChunkId(self.0 + other)
+    }
+}
+
 #[derive(Clone, Debug, binrw::BinRead, binrw::BinWrite)]
 #[brw(big)]
 #[brw(assert(label.iter().any(|x|*x == b'\0')))]

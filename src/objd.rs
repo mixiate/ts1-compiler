@@ -14,9 +14,9 @@ pub struct ObjectDefinition {
     #[serde(rename = "@initialstacksize")]
     pub initialstacksize: i16,
     #[serde(rename = "@basegraphic")]
-    pub basegraphic: i16,
+    pub base_draw_group_chunk_id: iff::IffChunkId,
     #[serde(rename = "@numgraphics")]
-    pub numgraphics: i16,
+    pub draw_group_count: i16,
     #[serde(rename = "@maintreeid")]
     pub maintreeid: i16,
     #[serde(rename = "@gardeningtreeid")]
@@ -225,8 +225,8 @@ impl ObjectDefinition {
 
         objd_data.extend_from_slice(&138i32.to_le_bytes());
         objd_data.extend_from_slice(&self.initialstacksize.to_le_bytes());
-        objd_data.extend_from_slice(&self.basegraphic.to_le_bytes());
-        objd_data.extend_from_slice(&self.numgraphics.to_le_bytes());
+        objd_data.extend_from_slice(&self.base_draw_group_chunk_id.as_i16().to_le_bytes());
+        objd_data.extend_from_slice(&self.draw_group_count.to_le_bytes());
         objd_data.extend_from_slice(&self.maintreeid.to_le_bytes());
         objd_data.extend_from_slice(&self.gardeningtreeid.to_le_bytes());
         objd_data.extend_from_slice(&self.treetableid.to_le_bytes());
