@@ -98,9 +98,11 @@ impl IffDescription {
         let object_definitions = &iff_description.object_definitions.object_definitions;
         let slots = &iff_description.slots.slots;
         let draw_groups = &iff_description.draw_groups.draw_groups;
+        let sprites = &iff_description.sprites.sprites;
 
         let slot_ids = slots.iter().map(|slot| slot.chunk_id).collect::<std::collections::HashSet<_>>();
         let draw_group_ids = draw_groups.iter().map(|x| x.chunk_id).collect::<std::collections::HashSet<_>>();
+        let sprite_ids = sprites.iter().map(|x| x.chunk_id).collect::<std::collections::HashSet<_>>();
 
         for object_definition in object_definitions {
             if object_definition.slot_chunk_id.as_i16() != 0 {
@@ -112,6 +114,7 @@ impl IffDescription {
                     object_definition.chunk_label
                 );
             }
+
             if object_definition.subindex != -1 {
                 for i in 0..object_definition.draw_group_count {
                     let draw_group_chunk_id = object_definition.base_draw_group_chunk_id + i;
@@ -119,6 +122,16 @@ impl IffDescription {
                         draw_group_ids.contains(&draw_group_chunk_id),
                         "failed to find draw group {} used in object definition {} {}",
                         draw_group_chunk_id.as_i16(),
+                        object_definition.chunk_id.as_i16(),
+                        object_definition.chunk_label
+                    );
+                }
+                for i in 0..object_definition.dynamic_sprite_count {
+                    let sprite_chunk_id = object_definition.base_dynamic_sprite_chunk_id + i;
+                    anyhow::ensure!(
+                        sprite_ids.contains(&sprite_chunk_id),
+                        "failed to find dynamic sprite {} used in object definition {} {}",
+                        sprite_chunk_id.as_i16(),
                         object_definition.chunk_id.as_i16(),
                         object_definition.chunk_label
                     );

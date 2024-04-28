@@ -134,9 +134,9 @@ pub struct ObjectDefinition {
     #[serde(rename = "@leadobject")]
     pub leadobject: i16,
     #[serde(rename = "@dynspritebaseid")]
-    pub dynspritebaseid: i16,
+    pub base_dynamic_sprite_chunk_id: iff::IffChunkId,
     #[serde(rename = "@numdynsprites")]
-    pub numdynsprites: i16,
+    pub dynamic_sprite_count: i16,
     #[serde(rename = "@chairentryflags")]
     pub chairentryflags: i16,
     #[serde(rename = "@tilewidth")]
@@ -285,8 +285,8 @@ impl ObjectDefinition {
         objd_data.extend_from_slice(&self.frontfacedirection.to_le_bytes());
         objd_data.extend_from_slice(&self.walladjacencychangedtreeid.to_le_bytes());
         objd_data.extend_from_slice(&self.leadobject.to_le_bytes());
-        objd_data.extend_from_slice(&self.dynspritebaseid.to_le_bytes());
-        objd_data.extend_from_slice(&self.numdynsprites.to_le_bytes());
+        objd_data.extend_from_slice(&self.base_dynamic_sprite_chunk_id.as_i16().to_le_bytes());
+        objd_data.extend_from_slice(&self.dynamic_sprite_count.to_le_bytes());
         objd_data.extend_from_slice(&self.chairentryflags.to_le_bytes());
         objd_data.extend_from_slice(&self.tilewidth.to_le_bytes());
         objd_data.extend_from_slice(&self.suitnotcopyable.to_le_bytes());
