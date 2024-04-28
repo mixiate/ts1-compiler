@@ -7,10 +7,10 @@ use serde_with::serde_as;
 use serde_with::BoolFromInt;
 
 #[derive(Copy, Clone, PartialEq, serde::Deserialize, serde::Serialize)]
-pub struct SpriteIndex(u32);
+pub struct SpriteIndex(i32);
 
 impl SpriteIndex {
-    pub fn as_u32(self) -> u32 {
+    pub fn as_i32(self) -> i32 {
         self.0
     }
 }
@@ -98,7 +98,7 @@ pub struct SpriteFrame {
 
 impl SpriteFrame {
     pub fn new(
-        index: u32,
+        index: i32,
         zoom_level: sprite::ZoomLevel,
         rotation: sprite::Rotation,
         sprite_image_description: &sprite::SpriteImageDescription,

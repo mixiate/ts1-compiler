@@ -83,7 +83,7 @@ impl DrawGroup {
 
             for draw_group_item in &draw_group_item_list.draw_group_items {
                 dgrp_data.extend_from_slice(&draw_group_item.sprite_chunk_id.as_i32().to_le_bytes());
-                dgrp_data.extend_from_slice(&draw_group_item.sprite_index.as_u32().to_le_bytes());
+                dgrp_data.extend_from_slice(&draw_group_item.sprite_index.as_i32().to_le_bytes());
                 dgrp_data.extend_from_slice(&draw_group_item.sprite_offset_x.to_le_bytes());
                 dgrp_data.extend_from_slice(&draw_group_item.sprite_offset_y.to_le_bytes());
                 dgrp_data.extend_from_slice(&draw_group_item.object_offset_z.to_le_bytes());

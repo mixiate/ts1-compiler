@@ -140,15 +140,27 @@ impl IffDescription {
         }
 
         for draw_group in draw_groups {
-            for draw_group_item_list in &draw_group.draw_group_item_lists {
+            for (i, draw_group_item_list) in draw_group.draw_group_item_lists.iter().enumerate() {
                 for draw_group_item in &draw_group_item_list.draw_group_items {
-                    anyhow::ensure!(
-                        sprite_ids.contains(&draw_group_item.sprite_chunk_id),
-                        "failed to find sprite {} used in draw group {} {}",
-                        draw_group_item.sprite_chunk_id.as_i16(),
-                        draw_group.chunk_id.as_i16(),
-                        draw_group.chunk_label,
-                    );
+                    if let Some(sprite) = sprites.iter().find(|x| x.chunk_id == draw_group_item.sprite_chunk_id) {
+                        anyhow::ensure!(
+                            sprite.sprite_frame_count > draw_group_item.sprite_index.as_i32(),
+                            "failed to find frame {} of sprite {} used in draw group {} {} item list {}",
+                            draw_group_item.sprite_index.as_i32(),
+                            draw_group_item.sprite_chunk_id.as_i16(),
+                            draw_group.chunk_id.as_i16(),
+                            draw_group.chunk_label,
+                            i,
+                        );
+                    } else {
+                        anyhow::bail!(
+                            "failed to find sprite {} used in draw group {} {} item list {}",
+                            draw_group_item.sprite_chunk_id.as_i16(),
+                            draw_group.chunk_id.as_i16(),
+                            draw_group.chunk_label,
+                            i,
+                        );
+                    }
                 }
             }
         }
