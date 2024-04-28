@@ -139,6 +139,20 @@ impl IffDescription {
             }
         }
 
+        for draw_group in draw_groups {
+            for draw_group_item_list in &draw_group.draw_group_item_lists {
+                for draw_group_item in &draw_group_item_list.draw_group_items {
+                    anyhow::ensure!(
+                        sprite_ids.contains(&draw_group_item.sprite_chunk_id),
+                        "failed to find sprite {} used in draw group {} {}",
+                        draw_group_item.sprite_chunk_id.as_i16(),
+                        draw_group.chunk_id.as_i16(),
+                        draw_group.chunk_label,
+                    );
+                }
+            }
+        }
+
         Ok(iff_description)
     }
 
