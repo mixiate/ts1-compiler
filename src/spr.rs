@@ -1,5 +1,6 @@
 use crate::error;
 use crate::iff;
+use crate::iff_description;
 use crate::sprite;
 
 use anyhow::Context;
@@ -698,4 +699,93 @@ fn read_bmp_rect(
     use image::ImageDecoderRect;
     bmp.read_rect(x, y, width, height, &mut pixels, usize::try_from(width).unwrap())?;
     Ok(pixels)
+}
+
+pub fn deserialize_sprites<'de, D>(deserializer: D) -> Result<iff_description::Sprites, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize;
+    let sprites = iff_description::Sprites::deserialize(deserializer)?;
+
+    for sprite in &sprites.sprites {
+        if let Ok(sprite_frames_len) = i32::try_from(sprite.sprite_frames.len()) {
+            if sprite.sprite_frame_count != sprite_frames_len {
+                return Err(serde::de::Error::custom(format!(
+                    "frame count of {} does not match amount of frames in sprite {} {}",
+                    sprite.sprite_frame_count,
+                    sprite.chunk_id.as_i16(),
+                    sprite.chunk_label,
+                )));
+            }
+        } else {
+            return Err(serde::de::Error::custom(format!(
+                "sprite {} {} has too many frames",
+                sprite.chunk_id.as_i16(),
+                sprite.chunk_label,
+            )));
+        }
+
+        for (frame, index) in sprite.sprite_frames.iter().zip(0i32..) {
+            if frame.index.as_i32() != index {
+                return Err(serde::de::Error::custom(format!(
+                    "index of {} is incorrect for frame {} of sprite {} {}",
+                    frame.index.as_i32(),
+                    index,
+                    sprite.chunk_id.as_i16(),
+                    sprite.chunk_label,
+                )));
+            }
+
+            match sprite.sprite_type {
+                SpriteType::Spr1 => {
+                    if frame.sprite_channels.len() != 1 {
+                        return Err(serde::de::Error::custom(format!(
+                            "expected 1 channel in frame {} of sprite {} {}",
+                            frame.index.as_i32(),
+                            sprite.chunk_id.as_i16(),
+                            sprite.chunk_label,
+                        )));
+                    } else if frame.sprite_channels[0].channel_type != SpriteChannelType::Depth {
+                        return Err(serde::de::Error::custom(format!(
+                            "expected depth channel in frame {} of sprite {} {}",
+                            frame.index.as_i32(),
+                            sprite.chunk_id.as_i16(),
+                            sprite.chunk_label,
+                        )));
+                    }
+                }
+                SpriteType::Spr2 => {
+                    if frame.sprite_channels.len() != 3 {
+                        return Err(serde::de::Error::custom(format!(
+                            "expected 3 channels in frame {} of sprite {} {}",
+                            frame.index.as_i32(),
+                            sprite.chunk_id.as_i16(),
+                            sprite.chunk_label,
+                        )));
+                    } else {
+                        let channel_types = [
+                            SpriteChannelType::Color,
+                            SpriteChannelType::Depth,
+                            SpriteChannelType::Alpha,
+                        ];
+                        for (i, channel_type) in channel_types.iter().enumerate() {
+                            if frame.sprite_channels[i].channel_type != *channel_type {
+                                return Err(serde::de::Error::custom(format!(
+                                    "expected {} channel in channel {} of frame {} of sprite {} {}",
+                                    channel_type,
+                                    i,
+                                    frame.index.as_i32(),
+                                    sprite.chunk_id.as_i16(),
+                                    sprite.chunk_label,
+                                )));
+                            }
+                        }
+                    }
+                }
+            };
+        }
+    }
+
+    Ok(sprites)
 }

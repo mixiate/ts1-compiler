@@ -58,7 +58,7 @@ pub struct IffDescription {
     pub slots: Slots,
     #[serde(rename = "drawgroups", deserialize_with = "deserialize_draw_groups")]
     pub draw_groups: DrawGroups,
-    #[serde(rename = "sprites", deserialize_with = "deserialize_sprites")]
+    #[serde(rename = "sprites", deserialize_with = "spr::deserialize_sprites")]
     pub sprites: Sprites,
 }
 
@@ -333,45 +333,4 @@ where
     }
 
     Ok(draw_groups)
-}
-
-fn deserialize_sprites<'de, D>(deserializer: D) -> Result<Sprites, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    use serde::Deserialize;
-    let sprites = Sprites::deserialize(deserializer)?;
-
-    for sprite in &sprites.sprites {
-        if let Ok(sprite_frames_len) = i32::try_from(sprite.sprite_frames.len()) {
-            if sprite.sprite_frame_count != sprite_frames_len {
-                return Err(serde::de::Error::custom(format!(
-                    "frame count of {} does not match amount of frames in sprite {} {}",
-                    sprite.sprite_frame_count,
-                    sprite.chunk_id.as_i16(),
-                    sprite.chunk_label,
-                )));
-            }
-        } else {
-            return Err(serde::de::Error::custom(format!(
-                "sprite {} {} has too many frames",
-                sprite.chunk_id.as_i16(),
-                sprite.chunk_label,
-            )));
-        }
-
-        for (frame, index) in sprite.sprite_frames.iter().zip(0i32..) {
-            if frame.index.as_i32() != index {
-                return Err(serde::de::Error::custom(format!(
-                    "index of {} is incorrect for frame {} of sprite {} {}",
-                    frame.index.as_i32(),
-                    index,
-                    sprite.chunk_id.as_i16(),
-                    sprite.chunk_label,
-                )));
-            }
-        }
-    }
-
-    Ok(sprites)
 }
