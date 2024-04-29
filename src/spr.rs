@@ -542,7 +542,7 @@ impl Sprite {
 
                 let row_index = y * width;
 
-                if let Some(i) = pixels_p[row_index..].iter().position(|x| *x != frame.transparent_color_index) {
+                if let Some(i) = pixels_a[row_index..].iter().position(|x| *x != 0) {
                     let transparent_row_count = i / width;
                     if transparent_row_count >= 1 {
                         let row_command_length = u16::try_from(transparent_row_count).unwrap();
@@ -556,14 +556,13 @@ impl Sprite {
 
                 let mut x = 0;
                 while x < width {
-                    let color_pixel = pixels_p[row_index + x];
                     let alpha_pixel = pixels_a[row_index + x] >> 3;
 
-                    if color_pixel == frame.transparent_color_index {
+                    if alpha_pixel == 0 {
                         let mut transparent_width = 1;
                         while x + transparent_width < width {
-                            let color_pixel = pixels_p[row_index + x + transparent_width];
-                            if color_pixel == frame.transparent_color_index {
+                            let alpha_pixel = pixels_a[row_index + x + transparent_width];
+                            if alpha_pixel == 0 {
                                 transparent_width += 1;
                             } else {
                                 break;
@@ -581,10 +580,9 @@ impl Sprite {
                     } else if alpha_pixel < 31 {
                         let mut translucent_color_width = 1;
                         while x + translucent_color_width < width {
-                            let color_pixel = pixels_p[row_index + x + translucent_color_width];
                             let alpha_pixel = pixels_a[row_index + x + translucent_color_width] >> 3;
 
-                            if color_pixel != frame.transparent_color_index && alpha_pixel != 31 {
+                            if alpha_pixel > 0 && alpha_pixel < 31 {
                                 translucent_color_width += 1;
                             } else {
                                 break;
@@ -609,10 +607,9 @@ impl Sprite {
                     } else {
                         let mut color_width = 1;
                         while x + color_width < width {
-                            let color_pixel = pixels_p[row_index + x + color_width];
                             let alpha_pixel = pixels_a[row_index + x + color_width] >> 3;
 
-                            if color_pixel != frame.transparent_color_index && alpha_pixel == 31 {
+                            if alpha_pixel == 31 {
                                 color_width += 1;
                             } else {
                                 break;
