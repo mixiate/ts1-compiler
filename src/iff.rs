@@ -95,9 +95,17 @@ fn read_iff_file(iff_file_path: &std::path::Path) -> anyhow::Result<Iff> {
     use binrw::BinReaderExt;
     let iff: Iff = iff_file.read_ne().with_context(|| iff_decode_error(iff_file_path))?;
 
-    let chunk_sizes = iff.chunks.iter().fold(0u32, |acc, x| acc + x.header.size);
-    use std::io::Seek;
-    assert!(IFF_HEADER_SIZE as u64 + u64::from(chunk_sizes) == iff_file.seek(std::io::SeekFrom::End(0)).unwrap());
+    {
+        // binrw's until_eof attribute does not distinguish between eof and failing to parse an element
+        // manually check that all the file was read and the chunk sizes are correct
+        let chunk_sizes = iff.chunks.iter().fold(0u32, |acc, x| acc + x.header.size);
+        use std::io::Seek;
+        anyhow::ensure!(
+            IFF_HEADER_SIZE as u64 + u64::from(chunk_sizes) == iff_file.seek(std::io::SeekFrom::End(0)).unwrap(),
+            "found unknown data at end of iff file {}",
+            iff_file_path.display()
+        );
+    }
 
     Ok(iff)
 }
