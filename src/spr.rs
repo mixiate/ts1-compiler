@@ -784,6 +784,18 @@ where
                     }
                 }
             };
+
+            for channel in &frame.sprite_channels {
+                if channel.file_path_relative.is_empty() {
+                    return Err(serde::de::Error::custom(format!(
+                        "no file path found in {} channel of frame {} of sprite {} {}",
+                        channel.channel_type,
+                        frame.index.as_i32(),
+                        sprite.chunk_id.as_i16(),
+                        sprite.chunk_label,
+                    )));
+                }
+            }
         }
     }
 
