@@ -226,12 +226,17 @@ impl IffDescription {
                     let sprite_image = image::open(&alpha_sprite_file_path)
                         .with_context(|| error::file_read_error(&alpha_sprite_file_path))?
                         .to_luma8();
-                    sprite::calculate_sprite_image_description(
+                    let sprite_image_description = sprite::calculate_sprite_image_description(
                         &sprite_image,
                         frame.zoom_level,
                         sprite.palette_chunk_id,
                         frame.transparent_color_index,
-                    )
+                    );
+                    frame.bounds_left = sprite_image_description.bounds.left;
+                    frame.bounds_top = sprite_image_description.bounds.top;
+                    frame.bounds_right = sprite_image_description.bounds.right;
+                    frame.bounds_bottom = sprite_image_description.bounds.bottom;
+                    continue;
                 };
 
                 sprite.palette_chunk_id = sprite_image_description.palette_id;
