@@ -505,11 +505,11 @@ impl Sprite {
                 let mut bmp_z = read_bmp(&file_path_z)?;
                 let mut bmp_a = read_bmp(&file_path_a)?;
 
-                let pixels_p = read_bmp_rect(&mut bmp_p, x, y, width, height)
+                let pixels_p = read_bmp_rect(&mut bmp_p, x, y, std::cmp::max(width, 1), std::cmp::max(height, 1))
                     .with_context(|| error::file_read_error(&file_path_p))?;
-                let pixels_z = read_bmp_rect(&mut bmp_z, x, y, width, height)
+                let pixels_z = read_bmp_rect(&mut bmp_z, x, y, std::cmp::max(width, 1), std::cmp::max(height, 1))
                     .with_context(|| error::file_read_error(&file_path_z))?;
-                let pixels_a = read_bmp_rect(&mut bmp_a, x, y, width, height)
+                let pixels_a = read_bmp_rect(&mut bmp_a, x, y, std::cmp::max(width, 1), std::cmp::max(height, 1))
                     .with_context(|| error::file_read_error(&file_path_a))?;
 
                 (pixels_p, pixels_z, pixels_a)

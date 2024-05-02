@@ -133,6 +133,26 @@ pub fn calculate_sprite_image_description(
     palette_id: iff::IffChunkId,
     transparent_color_index: u8,
 ) -> SpriteImageDescription {
+    if !alpha_sprite.pixels().any(|x| x[0] != 0) {
+        return SpriteImageDescription {
+            width: 0,
+            height: 0,
+            bounds: SpriteBounds {
+                left: 0,
+                top: 0,
+                right: 0,
+                bottom: 0,
+            },
+            offsets: SpriteOffsets {
+                x: 0,
+                y: 0,
+                x_flipped: 0,
+            },
+            palette_id,
+            transparent_color_index,
+        };
+    }
+
     let bounds_left = {
         let mut bounds_left = 0;
         'outer: for x in 0..alpha_sprite.width() {
