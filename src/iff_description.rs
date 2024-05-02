@@ -234,10 +234,8 @@ impl IffDescription {
                         sprite.palette_chunk_id,
                         frame.transparent_color_index,
                     );
-                    frame.bounds_left = sprite_image_description.bounds.left;
-                    frame.bounds_top = sprite_image_description.bounds.top;
-                    frame.bounds_right = sprite_image_description.bounds.right;
-                    frame.bounds_bottom = sprite_image_description.bounds.bottom;
+                    frame.cropped_width = sprite_image_description.bounds.right - sprite_image_description.bounds.left;
+                    frame.cropped_height = sprite_image_description.bounds.bottom - sprite_image_description.bounds.top;
                     continue;
                 };
 
@@ -247,8 +245,8 @@ impl IffDescription {
 
                 frame.bounds_left = sprite_image_description.bounds.left;
                 frame.bounds_top = sprite_image_description.bounds.top;
-                frame.bounds_right = sprite_image_description.bounds.right;
-                frame.bounds_bottom = sprite_image_description.bounds.bottom;
+                frame.cropped_width = sprite_image_description.bounds.right - sprite_image_description.bounds.left;
+                frame.cropped_height = sprite_image_description.bounds.bottom - sprite_image_description.bounds.top;
 
                 for draw_group in self.draw_groups.draw_groups.iter_mut() {
                     for draw_group_item_list in &mut draw_group.draw_group_item_lists {

@@ -82,9 +82,9 @@ pub struct SpriteFrame {
     #[serde(rename = "@y")]
     pub bounds_top: i16,
     #[serde(skip)]
-    pub bounds_right: i16,
+    pub cropped_width: i16,
     #[serde(skip)]
-    pub bounds_bottom: i16,
+    pub cropped_height: i16,
     #[serde(rename = "@width")]
     pub width: i16,
     #[serde(rename = "@height")]
@@ -127,8 +127,8 @@ impl SpriteFrame {
             rotation,
             bounds_left: sprite_image_description.bounds.left,
             bounds_top: sprite_image_description.bounds.top,
-            bounds_right: sprite_image_description.bounds.right,
-            bounds_bottom: sprite_image_description.bounds.bottom,
+            cropped_width: sprite_image_description.bounds.right - sprite_image_description.bounds.left,
+            cropped_height: sprite_image_description.bounds.bottom - sprite_image_description.bounds.top,
             width: sprite_image_description.width,
             height: sprite_image_description.height,
             palette_chunk_id: sprite_image_description.palette_id,
@@ -488,8 +488,8 @@ impl Sprite {
 
         let mut frame_datas = std::vec::Vec::new();
         for frame in &self.sprite_frames {
-            let width = u32::try_from(frame.bounds_right - frame.bounds_left).unwrap();
-            let height = u32::try_from(frame.bounds_bottom - frame.bounds_top).unwrap();
+            let width = u32::try_from(frame.cropped_width).unwrap();
+            let height = u32::try_from(frame.cropped_height).unwrap();
             let (pixels_p, pixels_z, pixels_a) = {
                 let file_path_p = source_directory
                     .join(frame.sprite_channel_file_path_relative(SpriteChannelType::Color, self.chunk_id)?);
