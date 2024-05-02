@@ -252,6 +252,20 @@ impl Sprite {
                 frame.transparent_color_index
             };
 
+            let pixels = {
+                // the transmogrifier exports these sprites with pixels of either 128 or 255
+                // but the original iff file is either 0 or 255
+                let mut pixels = pixels;
+                if self.is_custom_wall_style {
+                    for pixel in pixels.iter_mut() {
+                        if *pixel != transparent_color_index {
+                            *pixel = 0;
+                        }
+                    }
+                }
+                pixels
+            };
+
             enum RowCommand {
                 StartSprite,
                 Start,
