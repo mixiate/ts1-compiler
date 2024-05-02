@@ -93,12 +93,26 @@ pub struct Sprites {
 impl IffDescription {
     pub fn open(xml_file_path: &std::path::Path) -> anyhow::Result<IffDescription> {
         let iff_description = std::fs::read_to_string(xml_file_path)?;
-        let iff_description = quick_xml::de::from_str::<IffDescription>(&iff_description)?;
+        Ok(quick_xml::de::from_str::<IffDescription>(&iff_description)?)
+    }
 
-        let object_definitions = &iff_description.object_definitions.object_definitions;
-        let slots = &iff_description.slots.slots;
-        let draw_groups = &iff_description.draw_groups.draw_groups;
-        let sprites = &iff_description.sprites.sprites;
+    pub fn save(&self, xml_file_path: &std::path::Path) -> anyhow::Result<()> {
+        let xml_header = include_str!("../res/header.xml");
+
+        let mut buffer = xml_header.to_owned();
+        let mut serializer = quick_xml::se::Serializer::with_root(&mut buffer, Some("objectsexportedfromthesims"))?;
+        serializer.indent(' ', 2);
+        use serde::Serialize;
+        self.serialize(serializer)?;
+
+        Ok(std::fs::write(xml_file_path, &buffer)?)
+    }
+
+    pub fn validate(self) -> anyhow::Result<IffDescription> {
+        let object_definitions = &self.object_definitions.object_definitions;
+        let slots = &self.slots.slots;
+        let draw_groups = &self.draw_groups.draw_groups;
+        let sprites = &self.sprites.sprites;
 
         let slot_ids = slots.iter().map(|slot| slot.chunk_id).collect::<std::collections::HashSet<_>>();
         let draw_group_ids = draw_groups.iter().map(|x| x.chunk_id).collect::<std::collections::HashSet<_>>();
@@ -165,19 +179,7 @@ impl IffDescription {
             }
         }
 
-        Ok(iff_description)
-    }
-
-    pub fn save(&self, xml_file_path: &std::path::Path) -> anyhow::Result<()> {
-        let xml_header = include_str!("../res/header.xml");
-
-        let mut buffer = xml_header.to_owned();
-        let mut serializer = quick_xml::se::Serializer::with_root(&mut buffer, Some("objectsexportedfromthesims"))?;
-        serializer.indent(' ', 2);
-        use serde::Serialize;
-        self.serialize(serializer)?;
-
-        Ok(std::fs::write(xml_file_path, &buffer)?)
+        Ok(self)
     }
 
     pub fn update_sprite_variants(&mut self, variant_original: &str, variant_new: &str) -> anyhow::Result<()> {

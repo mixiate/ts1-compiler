@@ -65,8 +65,10 @@ fn get_formatted_iff_file_path_and_rename_unhashed_iff_file(
 }
 
 pub fn compile(xml_file_path: &std::path::Path) -> anyhow::Result<()> {
-    let mut iff_description = iff_description::IffDescription::open(xml_file_path)
+    let iff_description = iff_description::IffDescription::open(xml_file_path)
         .with_context(|| format!("Failed to open xml file {}", xml_file_path.display()))?;
+
+    let mut iff_description = iff_description.validate()?;
 
     let source_directory = std::path::PathBuf::from(&xml_file_path);
     let source_directory = source_directory.parent().with_context(|| {
@@ -102,8 +104,10 @@ pub fn compile_advanced(
 ) -> anyhow::Result<()> {
     let xml_file_path = source_directory.join(object_name).with_extension("xml");
 
-    let mut iff_description = iff_description::IffDescription::open(&xml_file_path)
+    let iff_description = iff_description::IffDescription::open(&xml_file_path)
         .with_context(|| format!("Failed to open xml file {}", xml_file_path.display()))?;
+
+    let mut iff_description = iff_description.validate()?;
 
     if let Some((variant_original, variant_new)) = variant_names {
         iff_description.update_sprite_variants(variant_original, variant_new)?;
