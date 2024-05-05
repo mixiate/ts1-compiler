@@ -191,9 +191,16 @@ impl IffDescription {
                 continue;
             }
             for frame in &mut sprite.sprite_frames {
-                let sprite_file_path =
-                    frame.sprite_channel_file_path_relative_mut(spr::SpriteChannelType::Color, sprite.chunk_id)?;
-                *sprite_file_path = sprite_file_path.replacen(&variant_original, &variant_new, 1);
+                for channel in [
+                    spr::SpriteChannelType::Color,
+                    spr::SpriteChannelType::Depth,
+                    spr::SpriteChannelType::Alpha,
+                ]
+                .iter()
+                {
+                    let sprite_file_path = frame.sprite_channel_file_path_relative_mut(*channel, sprite.chunk_id)?;
+                    *sprite_file_path = sprite_file_path.replacen(&variant_original, &variant_new, 1);
+                }
             }
         }
         Ok(())
