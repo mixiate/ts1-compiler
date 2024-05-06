@@ -404,55 +404,133 @@ fn linear_to_srgb(linear: f32) -> u8 {
     }
 }
 
-fn downsize_color_sprite(color: &image::RgbImage, alpha: &image::Rgb32FImage) -> image::RgbImage {
-    let mut downsized_color = image::RgbImage::new(color.width() / 2, color.height() / 2);
-    let mut pixels = Vec::with_capacity(4);
-    for y in 0..downsized_color.height() {
-        for x in 0..downsized_color.width() {
-            let original_x = x * 2;
-            let original_y = y * 2;
-            let indices = [
-                (original_x, original_y),
-                (original_x + 1, original_y),
-                (original_x, original_y + 1),
-                (original_x + 1, original_y + 1),
-            ];
-            for (x, y) in indices {
-                if alpha.get_pixel(x, y)[0] > 0.0 {
-                    pixels.push(color.get_pixel(x, y));
-                }
-            }
-            let red = linear_to_srgb(
-                pixels.iter().fold(0.0, |a, x| a + srgb_to_linear(x[0])) / std::cmp::max(pixels.len(), 1) as f32,
-            );
-            let green = linear_to_srgb(
-                pixels.iter().fold(0.0, |a, x| a + srgb_to_linear(x[1])) / std::cmp::max(pixels.len(), 1) as f32,
-            );
-            let blue = linear_to_srgb(
-                pixels.iter().fold(0.0, |a, x| a + srgb_to_linear(x[2])) / std::cmp::max(pixels.len(), 1) as f32,
-            );
-            downsized_color.put_pixel(x, y, image::Rgb([red, green, blue]));
-            pixels.clear();
-        }
+fn sinc_normalized(x: f32) -> f32 {
+    let x = x * std::f32::consts::PI;
+
+    if x == 0.0 {
+        1.0
+    } else {
+        x.sin() / x
     }
-    downsized_color
 }
 
-fn downsize_alpha_sprite(alpha: &image::Rgb32FImage) -> image::Rgb32FImage {
-    let mut downsized_alpha = image::Rgb32FImage::new(alpha.width() / 2, alpha.height() / 2);
-    for y in 0..downsized_alpha.height() {
-        for x in 0..downsized_alpha.width() {
-            let alpha_values = [
-                alpha.get_pixel(x * 2, y * 2)[0],
-                alpha.get_pixel((x * 2) + 1, y * 2)[0],
-                alpha.get_pixel(x * 2, (y * 2) + 1)[0],
-                alpha.get_pixel((x * 2) + 1, (y * 2) + 1)[0],
-            ];
-            let average = alpha_values.iter().sum::<f32>() / 4.0;
-            downsized_alpha.put_pixel(x, y, image::Rgb([average, average, average]));
+fn lanczos_kernel(x: f32, a: f32) -> f32 {
+    if x.abs() < a {
+        sinc_normalized(x) * sinc_normalized(x / a)
+    } else {
+        0.0
+    }
+}
+
+fn downsample_vertical(color: &image::RgbImage, alpha: &image::Rgb32FImage) -> (image::RgbImage, image::Rgb32FImage) {
+    let mut indices = Vec::with_capacity(16);
+    let mut downsampled_color = image::RgbImage::new(color.width(), color.height() / 2);
+    for y in 0..downsampled_color.height() {
+        for x in 0..downsampled_color.width() {
+            const RATIO: f32 = 2.0;
+            const WINDOW: f32 = 3.0;
+
+            let original_y = (y as f32 + 0.5) * RATIO;
+
+            let top_bound = (original_y - (WINDOW * RATIO)).floor().clamp(0.0, color.height() as f32) as u32;
+            let bottom_bound = (original_y + (WINDOW * RATIO)).ceil().clamp(0.0, color.height() as f32) as u32;
+
+            let mut contribution_sum = 0.0;
+            for y in top_bound..bottom_bound {
+                if quantizer::posterize_normalized(alpha.get_pixel(x, y)[0], 3) > 0.0 {
+                    let filter_position = (y as f32 - (original_y - 0.5)) / RATIO;
+                    let contribution = lanczos_kernel(filter_position, WINDOW);
+                    contribution_sum += contribution;
+                    indices.push((x, y, contribution));
+                }
+            }
+
+            let mut downsampled_pixel = [0.0, 0.0, 0.0];
+            for (x, y, contribution) in &indices {
+                let original_pixel = color.get_pixel(*x, *y);
+                downsampled_pixel[0] += srgb_to_linear(original_pixel[0]) * (contribution / contribution_sum);
+                downsampled_pixel[1] += srgb_to_linear(original_pixel[1]) * (contribution / contribution_sum);
+                downsampled_pixel[2] += srgb_to_linear(original_pixel[2]) * (contribution / contribution_sum);
+            }
+            downsampled_color.put_pixel(
+                x,
+                y,
+                image::Rgb([
+                    linear_to_srgb(downsampled_pixel[0]),
+                    linear_to_srgb(downsampled_pixel[1]),
+                    linear_to_srgb(downsampled_pixel[2]),
+                ]),
+            );
+            indices.clear();
         }
     }
-    downsized_alpha
+    (
+        downsampled_color,
+        image::imageops::resize(
+            alpha,
+            alpha.width(),
+            alpha.height() / 2,
+            image::imageops::FilterType::Lanczos3,
+        ),
+    )
+}
+
+fn downsample_horizontal(color: &image::RgbImage, alpha: &image::Rgb32FImage) -> (image::RgbImage, image::Rgb32FImage) {
+    let mut indices = Vec::with_capacity(16);
+    let mut downsampled_color = image::RgbImage::new(color.width() / 2, color.height());
+    for y in 0..downsampled_color.height() {
+        for x in 0..downsampled_color.width() {
+            const RATIO: f32 = 2.0;
+            const WINDOW: f32 = 3.0;
+
+            let original_x = (x as f32 + 0.5) * RATIO;
+
+            let left_bound = (original_x - (WINDOW * RATIO)).floor().clamp(0.0, color.width() as f32) as u32;
+            let right_bound = (original_x + (WINDOW * RATIO)).ceil().clamp(0.0, color.width() as f32) as u32;
+
+            let mut contribution_sum = 0.0;
+            for x in left_bound..right_bound {
+                if quantizer::posterize_normalized(alpha.get_pixel(x, y)[0], 3) > 0.0 {
+                    let filter_position = (x as f32 - (original_x - 0.5)) / RATIO;
+                    let contribution = lanczos_kernel(filter_position, WINDOW);
+                    contribution_sum += contribution;
+                    indices.push((x, y, contribution));
+                }
+            }
+
+            let mut downsampled_pixel = [0.0, 0.0, 0.0];
+            for (x, y, contribution) in &indices {
+                let original_pixel = color.get_pixel(*x, *y);
+                downsampled_pixel[0] += srgb_to_linear(original_pixel[0]) * (contribution / contribution_sum);
+                downsampled_pixel[1] += srgb_to_linear(original_pixel[1]) * (contribution / contribution_sum);
+                downsampled_pixel[2] += srgb_to_linear(original_pixel[2]) * (contribution / contribution_sum);
+            }
+            downsampled_color.put_pixel(
+                x,
+                y,
+                image::Rgb([
+                    linear_to_srgb(downsampled_pixel[0]),
+                    linear_to_srgb(downsampled_pixel[1]),
+                    linear_to_srgb(downsampled_pixel[2]),
+                ]),
+            );
+            indices.clear();
+        }
+    }
+    (
+        downsampled_color,
+        image::imageops::resize(
+            alpha,
+            alpha.width() / 2,
+            alpha.height(),
+            image::imageops::FilterType::Lanczos3,
+        ),
+    )
+}
+
+fn downsample_sprites(color: &image::RgbImage, alpha: &image::Rgb32FImage) -> (image::RgbImage, image::Rgb32FImage) {
+    let (color, alpha) = downsample_vertical(color, alpha);
+    downsample_horizontal(&color, &alpha)
 }
 
 pub fn split(source_directory: &std::path::Path, object_name: &str, variant: Option<&str>) -> anyhow::Result<()> {
@@ -584,8 +662,7 @@ fn split_palette(
                 .with_context(|| error::file_read_error(&alpha_sprite_file_path))?
                 .to_rgb32f();
 
-            let color_sprite = downsize_color_sprite(&color_sprite, &alpha_sprite);
-            let alpha_sprite = downsize_alpha_sprite(&alpha_sprite);
+            let (color_sprite, alpha_sprite) = downsample_sprites(&color_sprite, &alpha_sprite);
 
             let dithered_color_sprite = quantizer::dither_color_sprite_to_r5g6b5(color_sprite.clone());
 
@@ -621,8 +698,7 @@ fn split_palette(
             quantizer.transparent_color_index,
         )?;
 
-        let color_sprite = downsize_color_sprite(&color_sprite, &alpha_sprite);
-        let alpha_sprite = downsize_alpha_sprite(&alpha_sprite);
+        let (color_sprite, alpha_sprite) = downsample_sprites(&color_sprite, &alpha_sprite);
         let dithered_color_sprite = quantizer::dither_color_sprite_to_r5g6b5(color_sprite.clone());
 
         split_sprite(
@@ -640,8 +716,7 @@ fn split_palette(
             quantizer.transparent_color_index,
         )?;
 
-        let color_sprite = downsize_color_sprite(&color_sprite, &alpha_sprite);
-        let alpha_sprite = downsize_alpha_sprite(&alpha_sprite);
+        let (color_sprite, alpha_sprite) = downsample_sprites(&color_sprite, &alpha_sprite);
         let dithered_color_sprite = quantizer::dither_color_sprite_to_r5g6b5(color_sprite.clone());
 
         split_sprite(
