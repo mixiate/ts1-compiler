@@ -84,6 +84,10 @@ impl Histogram {
     }
 
     pub fn add_colors(&mut self, color: &R5g6b5Image, alpha: &image::Rgb32FImage) {
+        // Non transparent colors are added to the histogram from the dithered R5G6B6 image.
+        // The dithering can create many more colors than simply posterizing the colors from
+        // the original 24-bit image. This gives a much better final output.
+
         for (rgb, a) in color.0.pixels().zip(alpha.pixels()) {
             if a[0] > 0.0 {
                 self.colors
@@ -96,6 +100,20 @@ impl Histogram {
 
     pub fn finalize(mut self) -> anyhow::Result<Quantizer> {
         anyhow::ensure!(!self.colors.is_empty(), "No colors added to histogram");
+
+        // The Sims 1 displays in 16-bit R5G6B5 color.
+        // Palettes can contain any 24-bit color, but when rendered in-game they will be converted
+        // to the nearest 16-bit color. This can sometimes have a very bad result.
+        // To do this properly, palette entries must be only 16-bit R5G6B5 colors, and these colors
+        // should used to quantize and dither the sprites correctly.
+        // Sprites will look exactly the same as they do in the files and in-game.
+
+        // Ideally it would be best to have a quantizer that works with 16-bit color at a lower
+        // level, but since there isn't one, imagequant is used in 2 stages as a workaround.
+        // Imagequant has posterization support, but not per channel, and it produces very bad results.
+        // However it has very good color selection that gives a good palette to start with.
+        // It also quantizes and dithers the final sprite well.
+
         let histogram_colors: Vec<_> = self
             .colors
             .iter()
@@ -107,6 +125,7 @@ impl Histogram {
         self.histogram.add_colors(&histogram_colors, 0.0).unwrap();
         let mut quantization_result = self.histogram.quantize(&self.quantizer).unwrap();
 
+        // Imagequants initial palette is converted to 16-bit R5G6B6 colors, ignoring duplicates.
         let palette_set: std::collections::HashSet<[u8; 3]> = quantization_result
             .palette()
             .iter()
@@ -115,6 +134,14 @@ impl Histogram {
         let palette = {
             let mut palette: Vec<[u8; 3]> = palette_set.into_iter().collect();
 
+            // Imagequant can sometimes produce palettes which are a lot less than 255 colors
+            // (pre posterization) even though there are more than 255 colors in the source images.
+            // It seems to drop colors that are used by only 1 or 2 pixels over eagerly.
+            // In some cases, a color centroid can be moved enough that a color with a lot of uses
+            // gets dropped unnecessarily.
+            // A small amount of colors are also dropped when the palette is converted to r5g6b5 colors.
+            // To workaround this, the palette is extended up to 255 colors with the next most used
+            // color that isn't already in the palette.
             let mut histogram_colors = histogram_colors.clone();
             histogram_colors.sort_by(|a, b| a.count.cmp(&b.count).reverse());
             while palette.len() < std::cmp::min(usize::from(palt::PALT_COLOR_ENTRY_COUNT) - 1, histogram_colors.len()) {
@@ -126,11 +153,18 @@ impl Histogram {
                     }
                 }
             }
+            // Pad the palette out to 255 with unused default colors
             while palette.len() < usize::from(palt::PALT_COLOR_ENTRY_COUNT) - 1 {
                 palette.push([0, 0, 0]);
             }
             palette
         };
+
+        // The final palette is created with the transparent color at the beginning.
+        // All colors are added as fixed colors to an imagequant histogram, ready for it to quantize
+        // the final sprites.
+        // The transparent color has an alpha of 1 so that imagequant will not match it to any
+        // pixels that are not transparent.
 
         let mut histogram = imagequant::Histogram::new(&self.quantizer);
         histogram.add_fixed_color(QUANTIZER_TRANSPARENT_COLOR, 0.0).unwrap();
@@ -176,6 +210,14 @@ pub struct Quantizer {
 
 impl Quantizer {
     pub fn quantize(&mut self, color: &R5g6b5Image, alpha: &image::Rgb32FImage) -> image::GrayImage {
+        // For some reason imagequant produces noticeably bad results when quantizing the original
+        // 24-bit image using the 256 R5G6B5 color palette.
+        // The dithered R5G6B5 image is used instead. If the image and palette uses less than 255
+        // colors, this will result in an unchanged image.
+
+        // The transparent pixels in the image are changed to the transparent color in the palette
+        // with an alpha of 1 so that they will only match eachother.
+
         let quantizer_pixels: Vec<_> = color
             .0
             .pixels()
