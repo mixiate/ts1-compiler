@@ -598,6 +598,8 @@ pub fn split(source_directory: &std::path::Path, object_name: &str, variant: Opt
         }
     }
 
+    let depth_planes = DepthPlanes::new();
+
     let mut frame_palette_map = std::collections::HashMap::new();
     for frame_description in &object_description.frames {
         frame_palette_map
@@ -614,6 +616,7 @@ pub fn split(source_directory: &std::path::Path, object_name: &str, variant: Opt
             object_description.dimensions,
             frame_descriptions,
             object_description.frames[0].palette_id,
+            &depth_planes,
         )?;
     }
 
@@ -627,9 +630,8 @@ fn split_palette(
     object_dimensions: ObjectDimensions,
     frame_descriptions: &[(&str, iff::IffChunkId)],
     palette_id: iff::IffChunkId,
+    depth_planes: &DepthPlanes,
 ) -> anyhow::Result<()> {
-    let depth_planes = DepthPlanes::new();
-
     let object_name = if let Some(variant) = variant {
         format!("{} - {}", object_name, variant)
     } else {
