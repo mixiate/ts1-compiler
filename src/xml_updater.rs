@@ -22,19 +22,18 @@ fn build_sprite_description(
     for zoom_level in zoom_levels {
         for rotation in rotations {
             let sprite_description_file_path =
-                sprite::get_sprite_image_description_file_path(tile_directory, zoom_level, rotation);
+                sprite::sprite_description_file_path(tile_directory, zoom_level, rotation);
             if !sprite_description_file_path.is_file() {
                 continue;
             }
             let sprite_description = sprite::read_sprite_image_description_file(&sprite_description_file_path)?;
 
-            let sprite_p_file_name = zoom_level.to_string() + "_" + &rotation.to_string() + "_p";
-            let sprite_z_file_name = zoom_level.to_string() + "_" + &rotation.to_string() + "_z";
-            let sprite_a_file_name = zoom_level.to_string() + "_" + &rotation.to_string() + "_a";
-
-            let sprite_p_file_path = tile_directory.join(&sprite_p_file_name).with_extension("bmp");
-            let sprite_z_file_path = tile_directory.join(&sprite_z_file_name).with_extension("bmp");
-            let sprite_a_file_path = tile_directory.join(&sprite_a_file_name).with_extension("bmp");
+            let sprite_p_file_path =
+                sprite::sprite_channel_file_path(tile_directory, zoom_level, rotation, sprite::Channel::Color);
+            let sprite_z_file_path =
+                sprite::sprite_channel_file_path(tile_directory, zoom_level, rotation, sprite::Channel::Depth);
+            let sprite_a_file_path =
+                sprite::sprite_channel_file_path(tile_directory, zoom_level, rotation, sprite::Channel::Alpha);
 
             let sprite_p_file_path = sprite_p_file_path.strip_prefix(source_directory).unwrap();
             let sprite_z_file_path = sprite_z_file_path.strip_prefix(source_directory).unwrap();

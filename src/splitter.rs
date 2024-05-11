@@ -70,21 +70,8 @@ fn split_sprite(
     let mut full_sprite_p = full_sprite_p.clone();
     let mut full_sprite_a = full_sprite_a.clone();
 
-    let transmogrified_rotation = rotation.transmogrify();
-
     for tile_y in 0..object_dimensions.y {
         for tile_x in 0..object_dimensions.x {
-            let split_sprite_frame_directory = split_sprites_directory.join(format!("{frame_name} {tile_x}_{tile_y}"));
-
-            let transmogrified_rotation_name = transmogrified_rotation.to_string();
-            let split_sprite_p_file_name = zoom_level.to_string() + "_" + &transmogrified_rotation_name + "_p.bmp";
-            let split_sprite_z_file_name = zoom_level.to_string() + "_" + &transmogrified_rotation_name + "_z.bmp";
-            let split_sprite_a_file_name = zoom_level.to_string() + "_" + &transmogrified_rotation_name + "_a.bmp";
-
-            let split_sprite_p_file_path = split_sprite_frame_directory.join(&split_sprite_p_file_name);
-            let split_sprite_z_file_path = split_sprite_frame_directory.join(&split_sprite_z_file_name);
-            let split_sprite_a_file_path = split_sprite_frame_directory.join(&split_sprite_a_file_name);
-
             let (x_offset, y_offset) = {
                 let x_offset_nw = -extra_tiles * (tile_width / 4);
                 let y_offset_nw = (object_dimensions.y - object_dimensions.x) * (tile_height / 4);
@@ -246,11 +233,34 @@ fn split_sprite(
                 }
             }
 
+            let split_sprite_frame_directory = split_sprites_directory.join(format!("{frame_name} {tile_x}_{tile_y}"));
+
             if !split_sprite_frame_directory.is_dir() {
                 std::fs::create_dir_all(&split_sprite_frame_directory).with_context(|| {
                     format!("Failed to create directory {}", split_sprite_frame_directory.display())
                 })?;
             }
+
+            let transmogrified_rotation = rotation.transmogrify();
+
+            let split_sprite_p_file_path = sprite::sprite_channel_file_path(
+                &split_sprite_frame_directory,
+                zoom_level,
+                transmogrified_rotation,
+                sprite::Channel::Color,
+            );
+            let split_sprite_z_file_path = sprite::sprite_channel_file_path(
+                &split_sprite_frame_directory,
+                zoom_level,
+                transmogrified_rotation,
+                sprite::Channel::Depth,
+            );
+            let split_sprite_a_file_path = sprite::sprite_channel_file_path(
+                &split_sprite_frame_directory,
+                zoom_level,
+                transmogrified_rotation,
+                sprite::Channel::Alpha,
+            );
 
             {
                 let mut output_buffer = Vec::new();
@@ -772,8 +782,12 @@ fn is_tile_empty(split_sprite_frame_tile_directory: &std::path::Path) -> anyhow:
     let zoom_levels = [sprite::ZoomLevel::Zero, sprite::ZoomLevel::One, sprite::ZoomLevel::Two];
     for rotation in rotations {
         for zoom_level in zoom_levels {
-            let split_sprite_a_file_name = zoom_level.to_string() + "_" + &rotation.to_string() + "_a.bmp";
-            let split_sprite_a_file_path = split_sprite_frame_tile_directory.join(&split_sprite_a_file_name);
+            let split_sprite_a_file_path = sprite::sprite_channel_file_path(
+                split_sprite_frame_tile_directory,
+                zoom_level,
+                rotation,
+                sprite::Channel::Alpha,
+            );
             if !split_sprite_a_file_path.is_file() {
                 continue;
             }

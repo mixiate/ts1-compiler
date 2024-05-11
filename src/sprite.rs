@@ -61,6 +61,23 @@ impl std::fmt::Display for Rotation {
     }
 }
 
+pub enum Channel {
+    Color,
+    Alpha,
+    Depth,
+}
+
+impl std::fmt::Display for Channel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let string = match self {
+            Channel::Color => "p",
+            Channel::Alpha => "a",
+            Channel::Depth => "z",
+        };
+        write!(f, "{}", string)
+    }
+}
+
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct SpriteBounds {
     pub left: i16,
@@ -86,12 +103,22 @@ pub struct SpriteImageDescription {
     pub transparent_color_index: u8,
 }
 
-pub fn get_sprite_image_description_file_path(
+pub fn sprite_channel_file_path(
+    sprite_frame_directory: &std::path::Path,
+    zoom_level: ZoomLevel,
+    rotation: Rotation,
+    channel: Channel,
+) -> std::path::PathBuf {
+    let channel_file_name = format!("{zoom_level}_{rotation}_{channel}");
+    sprite_frame_directory.join(channel_file_name).with_extension("bmp")
+}
+
+pub fn sprite_description_file_path(
     sprite_frame_directory: &std::path::Path,
     zoom_level: ZoomLevel,
     rotation: Rotation,
 ) -> std::path::PathBuf {
-    let description_file_name = format!("{zoom_level}_{rotation} description",);
+    let description_file_name = format!("{zoom_level}_{rotation} description");
     sprite_frame_directory.join(description_file_name).with_extension("json")
 }
 
@@ -115,8 +142,7 @@ pub fn write_sprite_image_description_file(
     zoom_level: ZoomLevel,
     rotation: Rotation,
 ) -> anyhow::Result<()> {
-    let sprite_image_description_file_path =
-        get_sprite_image_description_file_path(sprite_frame_directory, zoom_level, rotation);
+    let sprite_image_description_file_path = sprite_description_file_path(sprite_frame_directory, zoom_level, rotation);
     let json_string = serde_json::to_string_pretty(&sprite_image_description).with_context(|| {
         format!(
             "Failed to serialize json file {}",

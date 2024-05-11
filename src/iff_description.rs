@@ -223,11 +223,8 @@ impl IffDescription {
                     )
                 })?;
 
-                let sprite_description_file_path = sprite::get_sprite_image_description_file_path(
-                    sprite_frame_directory,
-                    frame.zoom_level,
-                    frame.rotation,
-                );
+                let sprite_description_file_path =
+                    sprite::sprite_description_file_path(sprite_frame_directory, frame.zoom_level, frame.rotation);
 
                 let sprite_image_description = if sprite_description_file_path.is_file() {
                     sprite::read_sprite_image_description_file(&sprite_description_file_path)?
