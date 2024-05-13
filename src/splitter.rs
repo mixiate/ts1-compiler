@@ -19,6 +19,10 @@ struct FrameDescription {
     name: String,
     sprite_id: iff::IffChunkId,
     palette_id: iff::IffChunkId,
+    #[serde(default)]
+    sprite_id_reverse_x: bool,
+    #[serde(default)]
+    sprite_id_reverse_y: bool,
 }
 
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
@@ -605,7 +609,7 @@ pub fn split(source_directory: &std::path::Path, object_name: &str, variant: Opt
         frame_palette_map
             .entry(frame_description.palette_id)
             .or_insert_with(Vec::new)
-            .push((frame_description.name.as_str(), frame_description.sprite_id));
+            .push(frame_description);
     }
 
     for frame_descriptions in frame_palette_map.values() {
@@ -628,7 +632,7 @@ fn split_palette(
     object_name: &str,
     variant: Option<&str>,
     object_dimensions: ObjectDimensions,
-    frame_descriptions: &[(&str, iff::IffChunkId)],
+    frame_descriptions: &[&FrameDescription],
     palette_id: iff::IffChunkId,
     depth_planes: &DepthPlanes,
 ) -> anyhow::Result<()> {
@@ -648,7 +652,7 @@ fn split_palette(
 
     let mut histogram = quantizer::Histogram::new();
 
-    for (frame_name, _) in frame_descriptions {
+    for frame_description in frame_descriptions {
         let sprite_count = sprites.len();
         let rotations = [
             sprite::Rotation::NorthWest,
@@ -657,7 +661,7 @@ fn split_palette(
             sprite::Rotation::SouthWest,
         ];
         for rotation in rotations {
-            let full_sprite_frame_directory = full_sprites_directory.join(frame_name);
+            let full_sprite_frame_directory = full_sprites_directory.join(&frame_description.name);
 
             let color_sprite_file_name = rotation.to_string() + "_color.png";
             let color_sprite_file_path = full_sprite_frame_directory.join(color_sprite_file_name);
@@ -680,13 +684,19 @@ fn split_palette(
 
             histogram.add_colors(&dithered_color_sprite, &alpha_sprite);
 
-            sprites.push((frame_name, rotation, color_sprite, alpha_sprite, dithered_color_sprite));
+            sprites.push((
+                &frame_description.name,
+                rotation,
+                color_sprite,
+                alpha_sprite,
+                dithered_color_sprite,
+            ));
         }
 
         anyhow::ensure!(
             sprites.len() > sprite_count,
             "Failed to find any sprites to split in frame \"{}\"",
-            frame_name
+            frame_description.name
         );
     }
 
@@ -747,10 +757,11 @@ fn split_palette(
         )?;
     }
 
-    for (frame_name, mut sprite_id) in frame_descriptions {
+    for frame_description in frame_descriptions {
         for y in 0..object_dimensions.y {
             for x in 0..object_dimensions.x {
-                let split_sprite_frame_directory = split_sprites_directory.join(format!("{frame_name} {x}_{y}"));
+                let split_sprite_frame_directory =
+                    split_sprites_directory.join(format!("{} {x}_{y}", frame_description.name));
                 if !split_sprite_frame_directory.is_dir() {
                     continue;
                 }
@@ -758,6 +769,20 @@ fn split_palette(
                     std::fs::remove_dir_all(&split_sprite_frame_directory)
                         .with_context(|| format!("Failed to remove {}", split_sprite_frame_directory.display()))?;
                 } else {
+                    let sprite_id = {
+                        let x = if frame_description.sprite_id_reverse_x {
+                            object_dimensions.x - x - 1
+                        } else {
+                            x
+                        };
+                        let y = if frame_description.sprite_id_reverse_y {
+                            object_dimensions.y - y - 1
+                        } else {
+                            y
+                        };
+                        frame_description.sprite_id + i16::try_from(x + (y * object_dimensions.x)).unwrap()
+                    };
+
                     let tile_sprite_id_file_path =
                         split_sprite_frame_directory.join("sprite id").with_extension("json");
                     let json_string = serde_json::to_string_pretty(&sprite_id).with_context(|| {
@@ -766,7 +791,6 @@ fn split_palette(
                     std::fs::write(&tile_sprite_id_file_path, json_string)
                         .with_context(|| error::file_write_error(&tile_sprite_id_file_path))?;
                 }
-                sprite_id.advance();
             }
         }
     }

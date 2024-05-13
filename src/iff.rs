@@ -23,10 +23,6 @@ impl IffChunkId {
     pub fn as_i32(self) -> i32 {
         i32::from(self.0)
     }
-
-    pub fn advance(&mut self) {
-        self.0 += 1;
-    }
 }
 
 impl std::ops::Add<i16> for IffChunkId {
