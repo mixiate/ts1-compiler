@@ -1,5 +1,6 @@
 mod compiler;
 mod dgrp;
+mod draw_group_rotation_adder;
 mod error;
 mod iff;
 mod iff_description;
@@ -46,6 +47,9 @@ enum CliCommands {
         variant_original: Option<String>,
         variant_new: Option<String>,
     },
+    AddRotations {
+        xml_file_path: std::path::PathBuf,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -85,6 +89,9 @@ fn main() -> anyhow::Result<()> {
                 object_name,
                 variant_original.as_deref().zip(variant_new.as_deref()),
             )?;
+        }
+        CliCommands::AddRotations { xml_file_path } => {
+            draw_group_rotation_adder::add_rotations(xml_file_path)?;
         }
     }
     Ok(())

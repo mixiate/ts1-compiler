@@ -11,6 +11,10 @@ use serde_with::BoolFromInt;
 pub struct SpriteIndex(i32);
 
 impl SpriteIndex {
+    pub fn new(index: i32) -> SpriteIndex {
+        SpriteIndex(index)
+    }
+
     pub fn as_i32(self) -> i32 {
         self.0
     }
