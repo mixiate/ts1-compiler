@@ -54,9 +54,14 @@ pub fn add_rotations(xml_file_path: &std::path::Path) -> anyhow::Result<()> {
                     0
                 };
 
+                // Convert rotations if draw group contains equal number of unflipped and flipped sprites
+                // or if draw group uses a sprite with only a single rotation
                 if (flipped_sprite_id_count == draw_group.draw_group_item_lists.len() / 2
                     && unflipped_sprite_id_count == draw_group.draw_group_item_lists.len() / 2)
-                    || unflipped_sprite_id_count == draw_group.draw_group_item_lists.len()
+                    || (unflipped_sprite_id_count == draw_group.draw_group_item_lists.len()
+                        && draw_group.draw_group_item_lists.iter_mut().zip(0i32..).all(|(x, i)| {
+                            x.draw_group_items[item_index].sprite_index == spr::SpriteIndex::new(2 - (i / 4))
+                        }))
                 {
                     if let Some(unflipped_sprite_id) = unflipped_sprite_id {
                         for (item_list, item_list_index) in draw_group.draw_group_item_lists.iter_mut().zip(0i32..) {
