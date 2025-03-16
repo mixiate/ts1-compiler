@@ -10,7 +10,7 @@ pub struct DrawGroup {
     #[serde(rename = "@id")]
     pub chunk_id: iff::IffChunkId,
     #[serde(rename = "drawgroupitemlist")]
-    pub draw_group_item_lists: [DrawGroupItemList; 12],
+    pub draw_group_item_lists: Vec<DrawGroupItemList>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -21,7 +21,7 @@ pub struct DrawGroupItemList {
         serialize_with = "serialize_draw_group_rotation",
         rename = "@dirflags"
     )]
-    pub rotation: sprite::Rotation,
+    pub rotation: (sprite::Rotation, u32),
     #[serde(
         deserialize_with = "deserialize_draw_group_zoom_level",
         serialize_with = "serialize_draw_group_zoom_level",
@@ -56,20 +56,13 @@ pub struct DrawGroupItem {
 impl DrawGroup {
     pub fn to_chunk(&self) -> anyhow::Result<iff::IffChunk> {
         const DGRP_HEADER_VERSION: u16 = 20004u16;
-        const DGRP_HEADER_IMAGE_COUNT: u32 = 12;
 
         let mut dgrp_data = Vec::new();
 
         dgrp_data.extend_from_slice(&DGRP_HEADER_VERSION.to_le_bytes());
-        dgrp_data.extend_from_slice(&DGRP_HEADER_IMAGE_COUNT.to_le_bytes());
+        dgrp_data.extend_from_slice(&u32::try_from(self.draw_group_item_lists.len()).unwrap().to_le_bytes());
 
         for draw_group_item_list in &self.draw_group_item_lists {
-            let rotation = match draw_group_item_list.rotation {
-                sprite::Rotation::NorthWest => 16u32,
-                sprite::Rotation::NorthEast => 4u32,
-                sprite::Rotation::SouthEast => 1u32,
-                sprite::Rotation::SouthWest => 64u32,
-            };
             let zoom_level = match draw_group_item_list.zoom_level {
                 sprite::ZoomLevel::Zero => 1u32,
                 sprite::ZoomLevel::One => 2u32,
@@ -77,7 +70,7 @@ impl DrawGroup {
             };
             let sprite_count = u32::try_from(draw_group_item_list.draw_group_items.len()).unwrap();
 
-            dgrp_data.extend_from_slice(&rotation.to_le_bytes());
+            dgrp_data.extend_from_slice(&draw_group_item_list.rotation.1.to_le_bytes());
             dgrp_data.extend_from_slice(&zoom_level.to_le_bytes());
             dgrp_data.extend_from_slice(&sprite_count.to_le_bytes());
 
@@ -102,34 +95,29 @@ impl DrawGroup {
     }
 }
 
-fn deserialize_draw_group_rotation<'de, D>(deserializer: D) -> Result<sprite::Rotation, D::Error>
+fn deserialize_draw_group_rotation<'de, D>(deserializer: D) -> Result<(sprite::Rotation, u32), D::Error>
 where
     D: serde::Deserializer<'de>,
 {
     use serde::Deserialize;
-    let string = String::deserialize(deserializer)?;
+    let rotation = u8::deserialize(deserializer)?;
 
-    const FIELDS: &[&str] = &["1", "4", "16", "64"];
-    match string.as_str() {
-        "1" => Ok(sprite::Rotation::SouthEast),
-        "4" => Ok(sprite::Rotation::NorthEast),
-        "16" => Ok(sprite::Rotation::NorthWest),
-        "64" => Ok(sprite::Rotation::SouthWest),
-        _ => Err(serde::de::Error::unknown_field(&string, FIELDS)),
+    const FIELDS: &[&str] = &["1", "2", "4", "8", "16", "32", "64", "128"];
+    match rotation {
+        1 | 2 => Ok((sprite::Rotation::SouthEast, rotation.into())),
+        4 | 8 => Ok((sprite::Rotation::NorthEast, rotation.into())),
+        16 | 32 => Ok((sprite::Rotation::NorthWest, rotation.into())),
+        64 | 128 => Ok((sprite::Rotation::SouthWest, rotation.into())),
+        _ => Err(serde::de::Error::unknown_field(&rotation.to_string(), FIELDS)),
     }
 }
 
-fn serialize_draw_group_rotation<S>(rotation: &sprite::Rotation, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_draw_group_rotation<S>(rotation: &(sprite::Rotation, u32), serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
     use serde::Serialize;
-    match rotation {
-        sprite::Rotation::SouthEast => 1i32.serialize(serializer),
-        sprite::Rotation::NorthEast => 4i32.serialize(serializer),
-        sprite::Rotation::NorthWest => 16i32.serialize(serializer),
-        sprite::Rotation::SouthWest => 64i32.serialize(serializer),
-    }
+    rotation.1.serialize(serializer)
 }
 
 fn deserialize_draw_group_zoom_level<'de, D>(deserializer: D) -> Result<sprite::ZoomLevel, D::Error>

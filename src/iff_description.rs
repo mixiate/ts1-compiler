@@ -56,7 +56,7 @@ pub struct IffDescription {
     pub object_definitions: ObjectDefinitions,
     #[serde(rename = "slots")]
     pub slots: Slots,
-    #[serde(rename = "drawgroups", deserialize_with = "deserialize_draw_groups")]
+    #[serde(rename = "drawgroups")]
     pub draw_groups: DrawGroups,
     #[serde(rename = "sprites", deserialize_with = "spr::deserialize_sprites")]
     pub sprites: Sprites,
@@ -303,43 +303,4 @@ where
     }
 
     Ok(object_definitions)
-}
-
-fn deserialize_draw_groups<'de, D>(deserializer: D) -> Result<DrawGroups, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    use serde::Deserialize;
-    let draw_groups = DrawGroups::deserialize(deserializer)?;
-
-    let rotations = [
-        sprite::Rotation::SouthEast,
-        sprite::Rotation::NorthEast,
-        sprite::Rotation::NorthWest,
-        sprite::Rotation::SouthWest,
-    ];
-    let zoom_levels = [sprite::ZoomLevel::Zero, sprite::ZoomLevel::One, sprite::ZoomLevel::Two];
-
-    for draw_group in &draw_groups.draw_groups {
-        for (i, draw_group_item_list) in draw_group.draw_group_item_lists.iter().enumerate() {
-            if draw_group_item_list.rotation != rotations[i % 4] {
-                return Err(serde::de::Error::custom(format!(
-                    "incorrect rotation in draw group {} {} item list {}",
-                    draw_group.chunk_id.as_i16(),
-                    draw_group.chunk_label,
-                    i,
-                )));
-            }
-            if draw_group_item_list.zoom_level != zoom_levels[i / 4] {
-                return Err(serde::de::Error::custom(format!(
-                    "incorrect zoom level in draw group {} {} item list {}",
-                    draw_group.chunk_id.as_i16(),
-                    draw_group.chunk_label,
-                    i,
-                )));
-            }
-        }
-    }
-
-    Ok(draw_groups)
 }

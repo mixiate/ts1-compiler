@@ -10,6 +10,14 @@ pub fn add_rotations(xml_file_path: &std::path::Path) -> anyhow::Result<()> {
     const FLIPPED_SPRITE_FLAG: u32 = 1;
 
     for draw_group in iff_description.draw_groups.draw_groups.iter_mut() {
+        if draw_group.draw_group_item_lists.len() != 12 {
+            println!(
+                "Could not convert draw group {} {} which does not have 12 draw group item lists",
+                draw_group.chunk_id.as_i16(),
+                draw_group.chunk_label
+            );
+            continue;
+        }
         let first_draw_group_items_len = draw_group.draw_group_item_lists[0].draw_group_items.len();
         if draw_group
             .draw_group_item_lists
