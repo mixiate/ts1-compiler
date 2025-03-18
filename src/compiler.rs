@@ -1,6 +1,5 @@
 use crate::iff;
 use crate::iff_description;
-use crate::the_sims;
 
 use anyhow::Context;
 
@@ -64,7 +63,7 @@ fn get_formatted_iff_file_path_and_rename_unhashed_iff_file(
     Ok(iff_file_path)
 }
 
-pub fn compile(xml_file_path: &std::path::Path) -> anyhow::Result<()> {
+pub fn compile(the_sims_directory: &std::path::Path, xml_file_path: &std::path::Path) -> anyhow::Result<()> {
     let iff_description = iff_description::IffDescription::open(xml_file_path)
         .with_context(|| format!("Failed to open xml file {}", xml_file_path.display()))?;
 
@@ -79,9 +78,7 @@ pub fn compile(xml_file_path: &std::path::Path) -> anyhow::Result<()> {
     })?;
     iff_description.update_sprite_positions(source_directory)?;
 
-    let the_sims_install_path = the_sims::install_path()?;
-    let input_iff_file_path =
-        the_sims_install_path.clone().join(&iff_description.iff_file_path_relative).with_extension("iff");
+    let input_iff_file_path = the_sims_directory.join(&iff_description.iff_file_path_relative).with_extension("iff");
 
     iff::rebuild_iff_file(
         source_directory,
@@ -96,6 +93,7 @@ pub fn compile(xml_file_path: &std::path::Path) -> anyhow::Result<()> {
 }
 
 pub fn compile_advanced(
+    the_sims_directory: &std::path::Path,
     source_directory: &std::path::Path,
     format_string: &str,
     creator_name: &str,
@@ -115,7 +113,7 @@ pub fn compile_advanced(
     iff_description.update_sprite_positions(source_directory)?;
 
     let (variant_original, variant_new) = variant_names.unzip();
-    let the_sims_downloads_path = the_sims::install_path()?.join("downloads");
+    let the_sims_downloads_path = the_sims_directory.join("downloads");
     let input_iff_file_path = get_formatted_iff_file_path_and_rename_unhashed_iff_file(
         &the_sims_downloads_path,
         format_string,

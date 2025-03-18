@@ -11,7 +11,6 @@ mod slot;
 mod splitter;
 mod spr;
 mod sprite;
-mod the_sims;
 mod xml_updater;
 
 #[derive(clap::Parser)]
@@ -36,9 +35,11 @@ enum CliCommands {
         variant: Option<String>,
     },
     Compile {
+        the_sims_directory: std::path::PathBuf,
         xml_file_path: std::path::PathBuf,
     },
     CompileAdvanced {
+        the_sims_directory: std::path::PathBuf,
         source_directory: std::path::PathBuf,
         format_string: String,
         creator_name: String,
@@ -71,10 +72,14 @@ fn main() -> anyhow::Result<()> {
         } => {
             xml_updater::update(source_directory, object_name, variant.as_deref())?;
         }
-        CliCommands::Compile { xml_file_path } => {
-            compiler::compile(xml_file_path)?;
+        CliCommands::Compile {
+            the_sims_directory,
+            xml_file_path,
+        } => {
+            compiler::compile(the_sims_directory, xml_file_path)?;
         }
         CliCommands::CompileAdvanced {
+            the_sims_directory,
             source_directory,
             format_string,
             creator_name,
@@ -83,6 +88,7 @@ fn main() -> anyhow::Result<()> {
             variant_new,
         } => {
             compiler::compile_advanced(
+                the_sims_directory,
                 source_directory,
                 format_string,
                 creator_name,
