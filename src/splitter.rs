@@ -421,11 +421,7 @@ fn linear_to_srgb(linear: f32) -> u8 {
 fn sinc_normalized(x: f32) -> f32 {
     let x = x * std::f32::consts::PI;
 
-    if x == 0.0 {
-        1.0
-    } else {
-        x.sin() / x
-    }
+    if x == 0.0 { 1.0 } else { x.sin() / x }
 }
 
 fn lanczos_kernel(x: f32, a: f32) -> f32 {

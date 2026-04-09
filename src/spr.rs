@@ -4,8 +4,8 @@ use crate::iff_description;
 use crate::sprite;
 
 use anyhow::Context;
-use serde_with::serde_as;
 use serde_with::BoolFromInt;
+use serde_with::serde_as;
 
 #[derive(Copy, Clone, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct SpriteIndex(i32);
