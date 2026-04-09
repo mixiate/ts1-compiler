@@ -373,7 +373,7 @@ impl DepthPlanes {
         }
     }
 
-    fn large(&self) -> DepthPlanesView {
+    fn large(&'_ self) -> DepthPlanesView<'_> {
         DepthPlanesView {
             left_far: &self.left_far_large,
             left_near: &self.left_near_large,
@@ -382,7 +382,7 @@ impl DepthPlanes {
         }
     }
 
-    fn medium(&self) -> DepthPlanesView {
+    fn medium(&'_ self) -> DepthPlanesView<'_> {
         DepthPlanesView {
             left_far: &self.left_far_medium,
             left_near: &self.left_near_medium,
@@ -391,7 +391,7 @@ impl DepthPlanes {
         }
     }
 
-    fn small(&self) -> DepthPlanesView {
+    fn small(&'_ self) -> DepthPlanesView<'_> {
         DepthPlanesView {
             left_far: &self.left_far_small,
             left_near: &self.left_near_small,

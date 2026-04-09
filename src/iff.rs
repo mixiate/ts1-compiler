@@ -35,7 +35,7 @@ impl std::ops::Add<i16> for IffChunkId {
 
 #[derive(Clone, Debug, binrw::BinRead, binrw::BinWrite)]
 #[brw(big)]
-#[brw(assert(label.iter().any(|x|*x == b'\0')))]
+#[brw(assert(label.contains(&b'\0')))]
 pub struct IffChunkHeader {
     chunk_type: [u8; 4],
     size: u32,
