@@ -620,13 +620,13 @@ pub fn split(source_directory: &std::path::Path, object_name: &str, variant: Opt
             .push(frame_description);
     }
 
-    for frame_descriptions in frame_palette_map.values() {
+    for (palette_id, frame_descriptions) in frame_palette_map {
         split_palette(
             &full_sprites_directory,
             &split_sprites_directory,
             object_description.dimensions,
-            frame_descriptions,
-            object_description.frames[0].palette_id,
+            &frame_descriptions,
+            palette_id,
             &depth_planes,
         )?;
     }
