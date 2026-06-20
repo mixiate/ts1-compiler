@@ -598,40 +598,6 @@ pub fn split(source_directory: &std::path::Path, object_name: &str, variant: Opt
         }
     }
 
-    let depth_planes = DepthPlanes::new();
-
-    let mut frame_palette_map = std::collections::HashMap::new();
-    for frame_description in &object_description.frames {
-        frame_palette_map
-            .entry(frame_description.palette_id)
-            .or_insert_with(Vec::new)
-            .push(frame_description);
-    }
-
-    for frame_descriptions in frame_palette_map.values() {
-        split_palette(
-            source_directory,
-            object_name,
-            variant,
-            object_description.dimensions,
-            frame_descriptions,
-            object_description.frames[0].palette_id,
-            &depth_planes,
-        )?;
-    }
-
-    Ok(())
-}
-
-fn split_palette(
-    source_directory: &std::path::Path,
-    object_name: &str,
-    variant: Option<&str>,
-    object_dimensions: ObjectDimensions,
-    frame_descriptions: &[&FrameDescription],
-    palette_id: iff::IffChunkId,
-    depth_planes: &DepthPlanes,
-) -> anyhow::Result<()> {
     let object_name = if let Some(variant) = variant {
         format!("{} - {}", object_name, variant)
     } else {
@@ -644,6 +610,38 @@ fn split_palette(
             .with_context(|| format!("Failed to remove {}", split_sprites_directory.display()))?;
     }
 
+    let depth_planes = DepthPlanes::new();
+
+    let mut frame_palette_map = std::collections::HashMap::new();
+    for frame_description in &object_description.frames {
+        frame_palette_map
+            .entry(frame_description.palette_id)
+            .or_insert_with(Vec::new)
+            .push(frame_description);
+    }
+
+    for frame_descriptions in frame_palette_map.values() {
+        split_palette(
+            &full_sprites_directory,
+            &split_sprites_directory,
+            object_description.dimensions,
+            frame_descriptions,
+            object_description.frames[0].palette_id,
+            &depth_planes,
+        )?;
+    }
+
+    Ok(())
+}
+
+fn split_palette(
+    full_sprites_directory: &std::path::Path,
+    split_sprites_directory: &std::path::Path,
+    object_dimensions: ObjectDimensions,
+    frame_descriptions: &[&FrameDescription],
+    palette_id: iff::IffChunkId,
+    depth_planes: &DepthPlanes,
+) -> anyhow::Result<()> {
     let mut sprites = Vec::new();
 
     let mut histogram = quantizer::Histogram::new();
@@ -702,8 +700,8 @@ fn split_palette(
 
     for (frame_name, rotation, color_sprite, alpha_sprite, dithered_color_sprite) in sprites {
         split_sprite(
-            &full_sprites_directory,
-            &split_sprites_directory,
+            full_sprites_directory,
+            split_sprites_directory,
             object_dimensions,
             frame_name,
             rotation,
@@ -720,8 +718,8 @@ fn split_palette(
         let dithered_color_sprite = quantizer::dither_color_sprite_to_r5g6b5(color_sprite.clone());
 
         split_sprite(
-            &full_sprites_directory,
-            &split_sprites_directory,
+            full_sprites_directory,
+            split_sprites_directory,
             object_dimensions,
             frame_name,
             rotation,
@@ -738,8 +736,8 @@ fn split_palette(
         let dithered_color_sprite = quantizer::dither_color_sprite_to_r5g6b5(color_sprite.clone());
 
         split_sprite(
-            &full_sprites_directory,
-            &split_sprites_directory,
+            full_sprites_directory,
+            split_sprites_directory,
             object_dimensions,
             frame_name,
             rotation,
